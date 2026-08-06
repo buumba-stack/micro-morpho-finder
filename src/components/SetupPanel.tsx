@@ -72,7 +72,7 @@ export function SetupPanel({
         <h3 className="text-sm font-semibold">3 · Particle filters</h3>
         <div className="grid grid-cols-2 gap-2">
           <label className="flex flex-col gap-1">
-            <span className="label-caps">Min area µm²</span>
+            <span className="label-plain">Min area µm²</span>
             <input
               type="number"
               min="0"
@@ -83,7 +83,7 @@ export function SetupPanel({
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="label-caps">Max area µm²</span>
+            <span className="label-plain">Max area µm²</span>
             <input
               type="number"
               min="0"

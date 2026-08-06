@@ -98,7 +98,7 @@ export function SummaryPanel({ entries }: { entries: ImageEntry[] }) {
               <tr className="label-caps text-left">
                 {["Tissue", "n", ...MORPHOLOGIES, "Mean area µm²", "Mean Feret µm", "Mean circ"].map(
                   (h) => (
-                    <th key={h} className="whitespace-nowrap border-b border-border px-2 py-1.5">
+                    <th key={h} className="label-plain whitespace-nowrap border-b border-border px-2 py-1.5">
                       {h}
                     </th>
                   ),

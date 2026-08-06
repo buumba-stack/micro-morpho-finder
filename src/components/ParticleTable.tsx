@@ -39,7 +39,7 @@ export function ParticleTable({ particles, selectedId, onSelect, onToggleReject 
                 "Class",
                 "Use",
               ].map((h) => (
-                <th key={h} className="whitespace-nowrap border-b border-border px-2 py-1.5">
+                <th key={h} className="label-plain whitespace-nowrap border-b border-border px-2 py-1.5">
                   {h}
                 </th>
               ))}
