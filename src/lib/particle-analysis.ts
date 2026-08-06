@@ -321,7 +321,11 @@ export function analyzeImageData(
       continue;
     }
 
-    const outlinePts = traceOutline(labels, w, h, label, minX, minY);
+    // `seed` is the topmost-leftmost pixel of this particle in raster order,
+    // which is the required start point for boundary tracing.
+    const seedX = seed % w;
+    const seedY = (seed - seedX) / w;
+    const outlinePts = traceOutline(labels, w, h, label, seedX, seedY);
     let perimeterPx = 0;
     const m = outlinePts.length / 2;
     for (let i = 0; i < m; i++) {
