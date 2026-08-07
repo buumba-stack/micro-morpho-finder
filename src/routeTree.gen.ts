@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicAiChatRouteImport } from './routes/api/public/ai-chat'
+import { Route as ApiPublicAiDecideRouteImport } from './routes/api/public/ai-decide'
 import { Route as ApiPublicAiQcRouteImport } from './routes/api/public/ai-qc'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const ApiPublicAiChatRoute = ApiPublicAiChatRouteImport.update({
   path: '/api/public/ai-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAiDecideRoute = ApiPublicAiDecideRouteImport.update({
+  id: '/api/public/ai-decide',
+  path: '/api/public/ai-decide',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicAiQcRoute = ApiPublicAiQcRouteImport.update({
   id: '/api/public/ai-qc',
   path: '/api/public/ai-qc',
@@ -32,30 +38,41 @@ const ApiPublicAiQcRoute = ApiPublicAiQcRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/public/ai-chat': typeof ApiPublicAiChatRoute
+  '/api/public/ai-decide': typeof ApiPublicAiDecideRoute
   '/api/public/ai-qc': typeof ApiPublicAiQcRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/public/ai-chat': typeof ApiPublicAiChatRoute
+  '/api/public/ai-decide': typeof ApiPublicAiDecideRoute
   '/api/public/ai-qc': typeof ApiPublicAiQcRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/public/ai-chat': typeof ApiPublicAiChatRoute
+  '/api/public/ai-decide': typeof ApiPublicAiDecideRoute
   '/api/public/ai-qc': typeof ApiPublicAiQcRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/ai-chat' | '/api/public/ai-qc'
+  fullPaths:
+    '/' | '/api/public/ai-chat' | '/api/public/ai-decide' | '/api/public/ai-qc'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/ai-chat' | '/api/public/ai-qc'
-  id: '__root__' | '/' | '/api/public/ai-chat' | '/api/public/ai-qc'
+  to:
+    '/' | '/api/public/ai-chat' | '/api/public/ai-decide' | '/api/public/ai-qc'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/public/ai-chat'
+    | '/api/public/ai-decide'
+    | '/api/public/ai-qc'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiPublicAiChatRoute: typeof ApiPublicAiChatRoute
+  ApiPublicAiDecideRoute: typeof ApiPublicAiDecideRoute
   ApiPublicAiQcRoute: typeof ApiPublicAiQcRoute
 }
 
@@ -75,6 +92,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/ai-decide': {
+      id: '/api/public/ai-decide'
+      path: '/api/public/ai-decide'
+      fullPath: '/api/public/ai-decide'
+      preLoaderRoute: typeof ApiPublicAiDecideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/ai-qc': {
       id: '/api/public/ai-qc'
       path: '/api/public/ai-qc'
@@ -88,6 +112,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiPublicAiChatRoute: ApiPublicAiChatRoute,
+  ApiPublicAiDecideRoute: ApiPublicAiDecideRoute,
   ApiPublicAiQcRoute: ApiPublicAiQcRoute,
 }
 export const routeTree = rootRouteImport
