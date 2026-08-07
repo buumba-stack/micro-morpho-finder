@@ -203,7 +203,17 @@ export function AnalyzerApp() {
             onToggleReject={toggleReject}
           />
           <SummaryPanel entries={entries} />
+          <AiPanel
+            entry={current}
+            entries={entries}
+            settings={settings}
+            reviews={aiReviews}
+            onReviews={setReviews}
+            onSelectParticle={setSelectedParticle}
+            onApplyExclusions={applyExclusions}
+          />
         </div>
+
 
         <div className="flex min-h-0 flex-col gap-4">
           <ImageList
