@@ -1,0 +1,268 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { AnalysisSettings } from "@/lib/particle-analysis";
+import type { ImageEntry } from "@/lib/study-types";
+import { buildParticleCrops } from "@/lib/particle-crops";
+import { datasetDigest } from "@/lib/dataset-digest";
+import { isOnline, requestQc, streamChat, type AiReview } from "@/lib/ai-client";
+
+const BATCH = 12;
+
+const VERDICT_CLASS: Record<string, string> = {
+  keep: "text-sphere",
+  exclude: "text-fibre",
+  uncertain: "text-pellet",
+};
+
+interface Props {
+  entry: ImageEntry | undefined;
+  entries: ImageEntry[];
+  settings: AnalysisSettings;
+  reviews: Record<string, AiReview[]>;
+  onReviews: (imageId: string, reviews: AiReview[]) => void;
+  onSelectParticle: (id: number) => void;
+  onApplyExclusions: (imageId: string, ids: number[]) => void;
+}
+
+type Msg = { role: "user" | "assistant"; content: string };
+
+export function AiPanel({
+  entry,
+  entries,
+  settings,
+  reviews,
+  onReviews,
+  onSelectParticle,
+  onApplyExclusions,
+}: Props) {
+  const [tab, setTab] = useState<"qc" | "chat">("qc");
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
+
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [draft, setDraft] = useState("");
+  const [streaming, setStreaming] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const logRef = useRef<HTMLDivElement | null>(null);
+
+  const particles = entry?.analysis?.particles ?? [];
+  const current = entry ? (reviews[entry.id] ?? []) : [];
+  const excludeIds = current.filter((r) => r.verdict === "exclude").map((r) => r.id);
+
+  const digest = useMemo(() => datasetDigest(entries, settings), [entries, settings]);
+
+  useEffect(() => {
+    if (tab === "chat") inputRef.current?.focus();
+  }, [tab, streaming]);
+
+  useEffect(() => {
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
+  }, [messages]);
+
+  const runQc = useCallback(async () => {
+    if (!entry || !entry.analysis) return;
+    if (!isOnline()) {
+      setError("AI review needs an internet connection.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    const all: AiReview[] = [];
+    try {
+      const targets = entry.analysis.particles;
+      for (let i = 0; i < targets.length; i += BATCH) {
+        const chunk = targets.slice(i, i + BATCH);
+        setStatus(`Reviewing ${i + 1}-${Math.min(i + BATCH, targets.length)} of ${targets.length}…`);
+        const crops = await buildParticleCrops(entry, chunk);
+        const got = await requestQc({
+          file: entry.name,
+          tissue: entry.tissue,
+          umPerPx: settings.umPerPx,
+          threshold: settings.threshold,
+          particles: chunk.map((p) => ({
+            id: p.id,
+            area: p.area,
+            perimeter: p.perimeter,
+            width: p.width,
+            height: p.height,
+            feret: p.feret,
+            minFeret: p.minFeret,
+            aspectRatio: p.aspectRatio,
+            circularity: p.circularity,
+            morphology: p.morphology,
+            touchesBorder: p.touchesBorder,
+            ...(crops.get(p.id) ? { crop: crops.get(p.id)! } : {}),
+          })),
+        });
+        all.push(...got);
+        onReviews(entry.id, [...all]);
+      }
+      setStatus(`Reviewed ${all.length} particle${all.length === 1 ? "" : "s"}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI review failed");
+    } finally {
+      setBusy(false);
+    }
+  }, [entry, settings, onReviews]);
+
+  const send = useCallback(async () => {
+    const text = draft.trim();
+    if (!text || streaming) return;
+    if (!isOnline()) {
+      setError("AI chat needs an internet connection.");
+      return;
+    }
+    setError("");
+    setDraft("");
+    const next: Msg[] = [...messages, { role: "user", content: text }];
+    setMessages([...next, { role: "assistant", content: "" }]);
+    setStreaming(true);
+    try {
+      let acc = "";
+      await streamChat({ messages: next, dataset: digest }, (chunk) => {
+        acc += chunk;
+        setMessages([...next, { role: "assistant", content: acc }]);
+      });
+      if (!acc) setMessages([...next, { role: "assistant", content: "(no answer returned)" }]);
+    } catch (err) {
+      setMessages(next);
+      setError(err instanceof Error ? err.message : "AI chat failed");
+    } finally {
+      setStreaming(false);
+    }
+  }, [draft, digest, messages, streaming]);
+
+  return (
+    <div className="panel flex min-h-0 flex-col">
+      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+        <div className="flex gap-1">
+          {(["qc", "chat"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`rounded px-2 py-1 font-mono text-[11px] uppercase tracking-wide ${
+                tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              {t === "qc" ? "AI review" : "Ask the data"}
+            </button>
+          ))}
+        </div>
+        <span className="label-caps">GPT-5 · online only</span>
+      </div>
+
+      {error && (
+        <p className="border-b border-border bg-fibre/10 px-3 py-2 font-mono text-[11px] text-fibre">
+          {error}
+        </p>
+      )}
+
+      {tab === "qc" ? (
+        <div className="flex min-h-0 flex-col gap-2 p-3">
+          <p className="text-[11px] leading-snug text-muted-foreground">
+            Sends each particle's measurements plus a zoomed crop with its detected outline to GPT-5,
+            which confirms the fibre/sphere/pellet/fragment call and flags overlapping particles,
+            incomplete outlines, border contact and fluorescence unlike the positive controls.
+          </p>
+          <div className="flex gap-2">
+            <button
+              className="btn-primary flex-1"
+              disabled={busy || !particles.length}
+              onClick={runQc}
+            >
+              {busy ? "Reviewing…" : `AI review ${particles.length} particle${particles.length === 1 ? "" : "s"}`}
+            </button>
+            <button
+              className="btn-ghost"
+              disabled={busy || !excludeIds.length || !entry}
+              onClick={() => entry && onApplyExclusions(entry.id, excludeIds)}
+            >
+              Reject {excludeIds.length} flagged
+            </button>
+          </div>
+          {status && <p className="font-mono text-[11px] text-muted-foreground">{status}</p>}
+
+          <div className="min-h-0 flex-1 overflow-auto">
+            {current.length === 0 ? (
+              <p className="py-6 text-center text-xs text-muted-foreground">
+                No AI review for this image yet.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {current.map((r) => (
+                  <li key={r.id}>
+                    <button
+                      onClick={() => onSelectParticle(r.id)}
+                      className="w-full rounded border border-border px-2 py-1.5 text-left hover:bg-secondary"
+                    >
+                      <span className="flex items-center justify-between gap-2 font-mono text-[11px]">
+                        <span>#{r.id}</span>
+                        <span className={VERDICT_CLASS[r.verdict] ?? ""}>
+                          {r.verdict} · {r.morphology}
+                          {r.issue !== "none" ? ` · ${r.issue}` : ""}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {Math.round((r.confidence ?? 0) * 100)}%
+                        </span>
+                      </span>
+                      {r.note && (
+                        <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
+                          {r.note}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div ref={logRef} className="min-h-[180px] flex-1 overflow-auto p-3">
+            {messages.length === 0 ? (
+              <p className="text-[11px] leading-snug text-muted-foreground">
+                Ask about your results — e.g. “Compare fibre share between liver and intestine”, “Which
+                images have unusually large particles?”, “Summarise mean Feret per tissue”.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {messages.map((m, i) => (
+                  <li
+                    key={i}
+                    className={
+                      m.role === "user"
+                        ? "rounded bg-secondary px-2 py-1.5 text-xs"
+                        : "whitespace-pre-wrap px-2 py-1.5 text-xs leading-relaxed"
+                    }
+                  >
+                    {m.content || (streaming ? "…" : "")}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="flex gap-2 border-t border-border p-2">
+            <textarea
+              ref={inputRef}
+              value={draft}
+              rows={2}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void send();
+                }
+              }}
+              placeholder="Ask about the dataset…"
+              className="field field-focus flex-1 resize-none"
+            />
+            <button className="btn-primary" disabled={streaming || !draft.trim()} onClick={send}>
+              {streaming ? "…" : "Send"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
