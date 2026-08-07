@@ -11,6 +11,8 @@ import { ImageList } from "@/components/ImageList";
 import { ImageViewer } from "@/components/ImageViewer";
 import { ParticleTable } from "@/components/ParticleTable";
 import { SummaryPanel } from "@/components/SummaryPanel";
+import { AiPanel } from "@/components/AiPanel";
+import type { AiReview } from "@/lib/ai-client";
 
 export function AnalyzerApp() {
   const [settings, setSettings] = useState<AnalysisSettings>(DEFAULT_SETTINGS);
@@ -19,6 +21,31 @@ export function AnalyzerApp() {
   const [selectedParticle, setSelectedParticle] = useState<number | null>(null);
   const [progress, setProgress] = useState<RunProgress>({ running: false, done: 0, total: 0 });
   const [runSignature, setRunSignature] = useState<string>("");
+  const [aiReviews, setAiReviews] = useState<Record<string, AiReview[]>>({});
+
+  const setReviews = useCallback((imageId: string, list: AiReview[]) => {
+    setAiReviews((prev) => ({ ...prev, [imageId]: list }));
+  }, []);
+
+  const applyExclusions = useCallback((imageId: string, ids: number[]) => {
+    const flagged = new Set(ids);
+    setEntries((prev) =>
+      prev.map((e) =>
+        e.id === imageId && e.analysis
+          ? {
+              ...e,
+              analysis: {
+                ...e.analysis,
+                particles: e.analysis.particles.map((p) =>
+                  flagged.has(p.id) ? { ...p, rejected: true } : p,
+                ),
+              },
+            }
+          : e,
+      ),
+    );
+  }, []);
+
 
   const signature = JSON.stringify(settings);
   const pendingCount = entries.filter((e) => e.status !== "done").length;
@@ -176,7 +203,17 @@ export function AnalyzerApp() {
             onToggleReject={toggleReject}
           />
           <SummaryPanel entries={entries} />
+          <AiPanel
+            entry={current}
+            entries={entries}
+            settings={settings}
+            reviews={aiReviews}
+            onReviews={setReviews}
+            onSelectParticle={setSelectedParticle}
+            onApplyExclusions={applyExclusions}
+          />
         </div>
+
 
         <div className="flex min-h-0 flex-col gap-4">
           <ImageList
