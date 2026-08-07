@@ -14,6 +14,8 @@ import { SummaryPanel } from "@/components/SummaryPanel";
 import { AiPanel } from "@/components/AiPanel";
 import { BlankLibraryPanel } from "@/components/BlankLibraryPanel";
 import { useBlankLibrary } from "@/hooks/useBlankLibrary";
+import { countConfirmed } from "@/lib/blank-library";
+
 import type { AiReview } from "@/lib/ai-client";
 
 export function AnalyzerApp() {
