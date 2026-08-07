@@ -12,6 +12,10 @@ import { ImageViewer } from "@/components/ImageViewer";
 import { ParticleTable } from "@/components/ParticleTable";
 import { SummaryPanel } from "@/components/SummaryPanel";
 import { AiPanel } from "@/components/AiPanel";
+import { BlankLibraryPanel } from "@/components/BlankLibraryPanel";
+import { useBlankLibrary } from "@/hooks/useBlankLibrary";
+import { countConfirmed } from "@/lib/blank-library";
+
 import type { AiReview } from "@/lib/ai-client";
 
 export function AnalyzerApp() {
@@ -22,6 +26,9 @@ export function AnalyzerApp() {
   const [progress, setProgress] = useState<RunProgress>({ running: false, done: 0, total: 0 });
   const [runSignature, setRunSignature] = useState<string>("");
   const [aiReviews, setAiReviews] = useState<Record<string, AiReview[]>>({});
+  const [view, setView] = useState<"analysis" | "blanks">("analysis");
+  const blanks = useBlankLibrary();
+
 
   const setReviews = useCallback((imageId: string, list: AiReview[]) => {
     setAiReviews((prev) => ({ ...prev, [imageId]: list }));
@@ -46,8 +53,9 @@ export function AnalyzerApp() {
     );
   }, []);
 
-
+  const blankConfirmed = useMemo(() => countConfirmed(blanks.library), [blanks.library]);
   const signature = JSON.stringify(settings);
+
   const pendingCount = entries.filter((e) => e.status !== "done").length;
   const staleSettings = runSignature !== "" && runSignature !== signature;
 
@@ -174,13 +182,39 @@ export function AnalyzerApp() {
         </dl>
       </header>
 
-      {staleSettings && !progress.running && (
+      <nav className="flex gap-1 border-b border-border">
+        {(
+          [
+            ["analysis", "Analysis"],
+            ["blanks", `Blank library${blankConfirmed ? ` · ${blankConfirmed} confirmed` : ""}`],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setView(id)}
+            className={`-mb-px border-b-2 px-3 py-1.5 text-xs font-semibold transition-colors ${
+              view === id
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {staleSettings && !progress.running && view === "analysis" && (
         <p className="rounded-md border border-accent/40 bg-accent/10 px-3 py-2 font-mono text-xs text-accent">
           Settings changed since the last run — re-analyze to apply the new scale/threshold/filters.
         </p>
       )}
 
-      <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
+      {view === "blanks" && <BlankLibraryPanel settings={settings} api={blanks} />}
+
+      <div
+        className={`${view === "analysis" ? "grid" : "hidden"} min-h-0 flex-1 gap-4 xl:grid-cols-[300px_minmax(0,1fr)_360px]`}
+      >
+
         <div className="flex min-h-0 flex-col gap-4">
           <SetupPanel
             settings={settings}
