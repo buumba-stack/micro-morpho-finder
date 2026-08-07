@@ -77,14 +77,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "MicroFluor - Microplastic Particle Analyzer" },
+      { title: "MicroFluor · Microplastic Morphology Analyzer" },
       {
         name: "description",
         content:
-          "Batch-analyze fluorescence photomicrographs to count and classify microplastic particles by morphology.",
+          "Batch count and classify microplastics in fluorescence photomicrographs of fish liver and intestine using an ImageJ-equivalent particle analysis workflow.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:title", content: "MicroFluor · Microplastic Morphology Analyzer" },
+      { name: "twitter:title", content: "MicroFluor · Microplastic Morphology Analyzer" },
+      { property: "og:description", content: "Batch count and classify microplastics in fluorescence photomicrographs of fish liver and intestine using an ImageJ-equivalent particle analysis workflow." },
+      { name: "twitter:description", content: "Batch count and classify microplastics in fluorescence photomicrographs of fish liver and intestine using an ImageJ-equivalent particle analysis workflow." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/888334f7149fb922ba3f6cae0bf6d180/id-preview-64d1d169--7c28e508-642b-4ca7-9872-79dbf40d3aff.lovable.app-1786085796562.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/888334f7149fb922ba3f6cae0bf6d180/id-preview-64d1d169--7c28e508-642b-4ca7-9872-79dbf40d3aff.lovable.app-1786085796562.png" },
     ],
     links: [
       {

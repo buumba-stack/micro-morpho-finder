@@ -14,7 +14,7 @@ export const Route = createFileRoute("/")({
       {
         property: "og:description",
         content:
-          "Automated particle counting, Feret and circularity measurement, and fibre/sphere/pellet/fragment classification for fluorescence micrographs.",
+          "Batch count and classify microplastics in fluorescence photomicrographs of fish liver and intestine using an ImageJ-equivalent particle analysis workflow.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
