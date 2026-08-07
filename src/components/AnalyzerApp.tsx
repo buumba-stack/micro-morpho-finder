@@ -51,8 +51,9 @@ export function AnalyzerApp() {
     );
   }, []);
 
-
+  const blankConfirmed = useMemo(() => countConfirmed(blanks.library), [blanks.library]);
   const signature = JSON.stringify(settings);
+
   const pendingCount = entries.filter((e) => e.status !== "done").length;
   const staleSettings = runSignature !== "" && runSignature !== signature;
 
