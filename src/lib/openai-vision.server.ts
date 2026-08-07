@@ -91,17 +91,29 @@ export async function completeJson(req: VisionRequest): Promise<string> {
         if (!line.startsWith("data:")) continue;
         const payload = line.slice(5).trim();
         if (!payload || payload === "[DONE]") continue;
+        let event: Record<string, unknown>;
         try {
-          const event = JSON.parse(payload) as Record<string, unknown>;
-          if (
-            event["type"] === "response.output_text.delta" &&
-            typeof event["delta"] === "string"
-          ) {
-            text += event["delta"];
-          }
+          event = JSON.parse(payload) as Record<string, unknown>;
         } catch {
-          /* keepalive / partial */
+          continue; // keepalive / partial
         }
+        // Streamed failures arrive as SSE events, not HTTP errors.
+        if (event["type"] === "error" || event["type"] === "response.failed") {
+          const err = (event["error"] ??
+            (event["response"] as { error?: unknown } | undefined)?.error) as
+            | { message?: string; code?: string }
+            | undefined;
+          throw new OpenAiError(
+            err?.code === "credit_balance_exhausted" || err?.code === "insufficient_quota"
+              ? 402
+              : 502,
+            err?.message ?? "OpenAI stream failed",
+          );
+        }
+        if (event["type"] === "response.output_text.delta" && typeof event["delta"] === "string") {
+          text += event["delta"];
+        }
+
       }
     }
   }
