@@ -12,6 +12,8 @@ import { ImageViewer } from "@/components/ImageViewer";
 import { ParticleTable } from "@/components/ParticleTable";
 import { SummaryPanel } from "@/components/SummaryPanel";
 import { AiPanel } from "@/components/AiPanel";
+import { BlankLibraryPanel } from "@/components/BlankLibraryPanel";
+import { useBlankLibrary } from "@/hooks/useBlankLibrary";
 import type { AiReview } from "@/lib/ai-client";
 
 export function AnalyzerApp() {
@@ -22,6 +24,9 @@ export function AnalyzerApp() {
   const [progress, setProgress] = useState<RunProgress>({ running: false, done: 0, total: 0 });
   const [runSignature, setRunSignature] = useState<string>("");
   const [aiReviews, setAiReviews] = useState<Record<string, AiReview[]>>({});
+  const [view, setView] = useState<"analysis" | "blanks">("analysis");
+  const blanks = useBlankLibrary();
+
 
   const setReviews = useCallback((imageId: string, list: AiReview[]) => {
     setAiReviews((prev) => ({ ...prev, [imageId]: list }));
