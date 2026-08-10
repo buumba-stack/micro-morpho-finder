@@ -369,7 +369,14 @@ export function AnalyzerApp() {
             <dt className="label-caps">Images</dt>
             <dd className="text-foreground">{entries.length}</dd>
           </div>
+          <div>
+            <dt className="label-caps">Batch saved</dt>
+            <dd className="text-foreground">
+              {savedAt ? new Date(savedAt).toLocaleTimeString() : "—"}
+            </dd>
+          </div>
         </dl>
+
       </header>
 
       <nav className="flex gap-1 border-b border-border">
