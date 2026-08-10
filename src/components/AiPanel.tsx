@@ -20,7 +20,10 @@ interface Props {
   reviews: Record<string, AiReview[]>;
   onReviews: (imageId: string, reviews: AiReview[]) => void;
   onSelectParticle: (id: number) => void;
+  onSelectImage: (imageId: string) => void;
   onApplyExclusions: (imageId: string, ids: number[]) => void;
+  /** writes every "exclude" verdict into the batch-processed results */
+  onAcceptReviews: () => void;
 }
 
 type Msg = { role: "user" | "assistant"; content: string };
@@ -32,7 +35,9 @@ export function AiPanel({
   reviews,
   onReviews,
   onSelectParticle,
+  onSelectImage,
   onApplyExclusions,
+  onAcceptReviews,
 }: Props) {
   const [tab, setTab] = useState<"qc" | "chat">("qc");
   const [busy, setBusy] = useState(false);
@@ -50,6 +55,17 @@ export function AiPanel({
   const excludeIds = current.filter((r) => r.verdict === "exclude").map((r) => r.id);
   const batchReady = entries.filter((e) => e.analysis && !e.draft);
   const pendingUpdates = entries.filter((e) => e.draft).length;
+
+  /** Reviews shown in the panel: batch-processed images only, in batch order. */
+  const reviewed = batchReady
+    .map((e) => ({ entry: e, list: reviews[e.id] ?? [] }))
+    .filter((g) => g.list.length > 0);
+  const reviewedTotal = reviewed.reduce((s, g) => s + g.list.length, 0);
+  const flaggedTotal = reviewed.reduce(
+    (s, g) => s + g.list.filter((r) => r.verdict === "exclude").length,
+    0,
+  );
+  const selectedHasDraft = Boolean(entry?.draft);
 
 
   const digest = useMemo(() => datasetDigest(entries, settings), [entries, settings]);
@@ -111,7 +127,7 @@ export function AiPanel({
   );
 
   const runQc = useCallback(async () => {
-    if (!entry || !entry.analysis) return;
+    if (!entry || !entry.analysis || entry.draft) return;
     if (!isOnline()) {
       setError("AI review needs an internet connection.");
       return;
@@ -219,21 +235,27 @@ export function AiPanel({
           <div className="flex gap-2">
             <button
               className="btn-primary flex-1"
-              disabled={busy || !particles.length}
+              disabled={busy || !particles.length || selectedHasDraft}
               onClick={runQc}
             >
               {busy
                 ? "Reviewing…"
-                : `AI review ${particles.length} particle${particles.length === 1 ? "" : "s"}`}
+                : `AI review this batch image (${particles.length} particle${particles.length === 1 ? "" : "s"})`}
             </button>
             <button
               className="btn-ghost"
-              disabled={busy || !excludeIds.length || !entry}
+              disabled={busy || !excludeIds.length || !entry || selectedHasDraft}
               onClick={() => entry && onApplyExclusions(entry.id, excludeIds)}
             >
               Reject {excludeIds.length} flagged
             </button>
           </div>
+          {selectedHasDraft && (
+            <p className="font-mono text-[11px] text-accent">
+              This image has a pending update. Click “Update batch” first — the AI review only runs
+              on batch-processed data.
+            </p>
+          )}
           <button
             className="btn-primary"
             disabled={busy || !batchReady.length || pendingUpdates > 0}
@@ -253,37 +275,73 @@ export function AiPanel({
           {status && <p className="font-mono text-[11px] text-muted-foreground">{status}</p>}
 
           <div className="min-h-0 flex-1 overflow-auto">
-            {current.length === 0 ? (
+            {reviewed.length === 0 ? (
               <p className="py-6 text-center text-xs text-muted-foreground">
-                No AI review for this image yet.
+                No AI review yet for the batch-processed images.
               </p>
             ) : (
-              <ul className="flex flex-col gap-1">
-                {current.map((r) => (
-                  <li key={r.id}>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    {reviewedTotal} particle{reviewedTotal === 1 ? "" : "s"} reviewed across{" "}
+                    {reviewed.length} batch image{reviewed.length === 1 ? "" : "s"} ·{" "}
+                    {flaggedTotal} flagged
+                  </span>
+                  <button
+                    className="btn-primary ml-auto px-2 py-0.5"
+                    disabled={busy || !flaggedTotal || pendingUpdates > 0}
+                    onClick={onAcceptReviews}
+                  >
+                    Accept AI review — reject {flaggedTotal} flagged
+                  </button>
+                </div>
+                {reviewed.map((g) => (
+                  <div key={g.entry.id} className="flex flex-col gap-1">
                     <button
-                      onClick={() => onSelectParticle(r.id)}
-                      className="w-full rounded border border-border px-2 py-1.5 text-left hover:bg-secondary"
+                      onClick={() => onSelectImage(g.entry.id)}
+                      className="flex items-center justify-between gap-2 border-b border-border pb-1 text-left font-mono text-[11px] hover:text-primary"
                     >
-                      <span className="flex items-center justify-between gap-2 font-mono text-[11px]">
-                        <span>#{r.id}</span>
-                        <span className={VERDICT_CLASS[r.verdict] ?? ""}>
-                          {r.verdict} · {r.morphology}
-                          {r.issue !== "none" ? ` · ${r.issue}` : ""}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {Math.round((r.confidence ?? 0) * 100)}%
-                        </span>
+                      <span className="truncate">
+                        {g.entry.name} <span className="text-muted-foreground">[{g.entry.tissue}]</span>
                       </span>
-                      {r.note && (
-                        <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
-                          {r.note}
-                        </span>
-                      )}
+                      <span className="text-muted-foreground">
+                        thr {g.entry.runSettings?.threshold ?? "—"} ·{" "}
+                        {g.list.filter((r) => r.verdict === "exclude").length}/{g.list.length}{" "}
+                        flagged
+                      </span>
                     </button>
-                  </li>
+                    <ul className="flex flex-col gap-1">
+                      {g.list.map((r) => (
+                        <li key={r.id}>
+                          <button
+                            onClick={() => {
+                              onSelectImage(g.entry.id);
+                              onSelectParticle(r.id);
+                            }}
+                            className="w-full rounded border border-border px-2 py-1.5 text-left hover:bg-secondary"
+                          >
+                            <span className="flex items-center justify-between gap-2 font-mono text-[11px]">
+                              <span>#{r.id}</span>
+                              <span className={VERDICT_CLASS[r.verdict] ?? ""}>
+                                {r.verdict} · {r.morphology}
+                                {r.issue !== "none" ? ` · ${r.issue}` : ""}
+                              </span>
+                              <span className="text-muted-foreground">
+                                {Math.round((r.confidence ?? 0) * 100)}%
+                              </span>
+                            </span>
+                            {r.note && (
+                              <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
+                                {r.note}
+                              </span>
+                            )}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
           </div>
         </div>
