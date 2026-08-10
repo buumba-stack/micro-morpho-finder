@@ -33,9 +33,13 @@ export function SetupPanel({
   selectedName,
   selectedAnalyzed,
   selectedStale,
+  draftPending,
+  onCommitDraft,
+  onDiscardDraft,
   onReanalyzeSelected,
   onApplyDefaultsToSelected,
   onCopySelectedToDefaults,
+
   defaults,
   onAddFiles,
   onRun,
