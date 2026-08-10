@@ -266,7 +266,7 @@ export function ImageViewer({ entry, threshold, selectedId, onSelect, onToggleRe
           </span>
         ))}
         <span className="flex items-center gap-1.5 label-caps">
-        <span className="flex items-center gap-1.5 label-caps">
+
           <span className="h-2.5 w-2.5 rounded-sm bg-rejected" />
           rejected
         </span>
