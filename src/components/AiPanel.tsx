@@ -77,8 +77,8 @@ export function AiPanel({
         const got = await requestQc({
           file: entry.name,
           tissue: entry.tissue,
-          umPerPx: settings.umPerPx,
-          threshold: settings.threshold,
+          umPerPx: entry.runSettings?.umPerPx ?? settings.umPerPx,
+          threshold: entry.runSettings?.threshold ?? settings.threshold,
           particles: chunk.map((p) => ({
             id: p.id,
             area: p.area,
@@ -92,6 +92,15 @@ export function AiPanel({
             morphology: p.morphology,
             touchesBorder: p.touchesBorder,
             ...(crops.get(p.id) ? { crop: crops.get(p.id)! } : {}),
+            ...(entry.blankMatches?.[p.id]
+              ? {
+                  blankSimilarity: entry.blankMatches[p.id]!.similarity,
+                  blankReference: entry.blankMatches[p.id]!.matches[0]?.referenceId ?? "",
+                  ...(entry.blankMatches[p.id]!.matches[0]?.crop
+                    ? { blankCrop: entry.blankMatches[p.id]!.matches[0]!.crop }
+                    : {}),
+                }
+              : {}),
           })),
         });
         all.push(...got);
@@ -162,7 +171,8 @@ export function AiPanel({
           <p className="text-[11px] leading-snug text-muted-foreground">
             Sends each particle's measurements plus a zoomed crop with its detected outline to GPT-5,
             which confirms the fibre/sphere/pellet/fragment call and flags overlapping particles,
-            incomplete outlines, border contact and fluorescence unlike the positive controls.
+            incomplete outlines, border contact and fluorescence unlike the positive controls. Blank
+            matches are sent along as visual evidence; uncertain objects are always kept.
           </p>
           <div className="flex gap-2">
             <button

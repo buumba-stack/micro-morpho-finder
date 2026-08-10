@@ -38,6 +38,12 @@ export interface QcParticleInput {
   morphology: string;
   touchesBorder: boolean;
   crop?: string;
+  /** similarity to the closest confirmed procedural-blank artefact, 0-1 */
+  blankSimilarity?: number;
+  /** reference id of that blank record */
+  blankReference?: string;
+  /** crop of the matched blank artefact, PNG data URL */
+  blankCrop?: string;
 }
 
 export async function requestQc(payload: {
