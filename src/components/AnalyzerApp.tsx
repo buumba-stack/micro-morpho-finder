@@ -296,6 +296,42 @@ export function AnalyzerApp() {
     setEntries((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
+  const clearAll = useCallback(() => {
+    setEntries([]);
+    setAiReviews({});
+    setSavedAt(null);
+    void clearSession();
+  }, []);
+
+  /** Restore the previously analyzed batch so results survive reloads/crashes. */
+  useEffect(() => {
+    let cancelled = false;
+    void loadSession().then((saved) => {
+      if (cancelled) return;
+      if (saved?.entries.length) {
+        setEntries(saved.entries);
+        setDefaults(saved.defaults ?? DEFAULT_SETTINGS);
+        setSavedAt(saved.savedAt);
+      }
+      setSessionReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** Auto-save the batch (debounced) whenever results or settings change. */
+  useEffect(() => {
+    if (!sessionReady || progress.running) return;
+    const t = setTimeout(() => {
+      void saveSession(entries, defaults).then((ok) => {
+        if (ok) setSavedAt(new Date().toISOString());
+      });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [entries, defaults, sessionReady, progress.running]);
+
+
   useEffect(() => {
     if (!selectedImage && entries.length) setSelectedImage(entries[0]!.id);
     if (selectedImage && !entries.some((e) => e.id === selectedImage)) {
