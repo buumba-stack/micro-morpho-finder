@@ -20,9 +20,18 @@ interface Props {
   selectedId: number | null;
   onSelect: (id: number | null) => void;
   onToggleReject: (id: number) => void;
+  /** removes the object entirely and renumbers the remaining particles */
+  onDeleteParticle: (id: number) => void;
 }
 
-export function ImageViewer({ entry, threshold, selectedId, onSelect, onToggleReject }: Props) {
+export function ImageViewer({
+  entry,
+  threshold,
+  selectedId,
+  onSelect,
+  onToggleReject,
+  onDeleteParticle,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [source, setSource] = useState<{ id: string; imageData: ImageData } | null>(null);
   const [mode, setMode] = useState<"fluorescence" | "binary">("fluorescence");
@@ -51,6 +60,20 @@ export function ImageViewer({ entry, threshold, selectedId, onSelect, onToggleRe
   }, [entry]);
 
   const particles = entry?.analysis?.particles ?? [];
+
+  useEffect(() => {
+    if (selectedId === null) return;
+    const onKey = (ev: KeyboardEvent) => {
+      const target = ev.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      if (ev.key === "Delete" || ev.key === "Backspace") {
+        ev.preventDefault();
+        onDeleteParticle(selectedId);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedId, onDeleteParticle]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -200,6 +223,14 @@ export function ImageViewer({ entry, threshold, selectedId, onSelect, onToggleRe
           />
           IDs
         </label>
+        <button
+          className="btn-ghost px-2 py-1 font-mono text-[11px] disabled:opacity-40"
+          disabled={selectedId === null}
+          onClick={() => selectedId !== null && onDeleteParticle(selectedId)}
+          title="Delete the selected object and renumber the rest (Del)"
+        >
+          {selectedId === null ? "Delete object" : `Delete #${selectedId}`}
+        </button>
         <div className="flex items-center gap-1">
           <button
             className="btn-ghost px-2 py-1"
@@ -266,7 +297,7 @@ export function ImageViewer({ entry, threshold, selectedId, onSelect, onToggleRe
           <span className="h-2.5 w-2.5 rounded-sm border border-dashed border-accent" />
           blank match (B%)
         </span>
-        <span className="ml-auto label-caps">click = select · double-click = reject/restore</span>
+        <span className="ml-auto label-caps">click number/outline = select · Del = delete &amp; renumber · double-click = reject/restore</span>
       </div>
     </div>
   );
