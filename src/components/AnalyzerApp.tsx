@@ -106,9 +106,13 @@ export function AnalyzerApp() {
     [defaults],
   );
 
-  /** Analyzes exactly one image with its own settings; never touches the others. */
+  /**
+   * Analyzes exactly one image with its own settings; never touches the others.
+   * `mode: "draft"` keeps the existing batch record and parks the new result as
+   * a pending update the user confirms with "Update batch".
+   */
   const analyzeEntry = useCallback(
-    async (entry: ImageEntry) => {
+    async (entry: ImageEntry, mode: "commit" | "draft" = "commit") => {
       setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, status: "running" } : e)));
       const settings = entry.settings;
       try {
@@ -120,19 +124,34 @@ export function AnalyzerApp() {
           settings,
           blanks.library,
         );
+        const analysisId = `${Date.now()}`;
         setEntries((prev) =>
           prev.map((e) =>
             e.id === entry.id
-              ? {
-                  ...e,
-                  status: "done",
-                  analysis,
-                  runSettings: { ...settings },
-                  analysisId: `${Date.now()}`,
-                  blankMatches,
-                  blankKeep: [],
-                  error: undefined,
-                }
+              ? mode === "draft"
+                ? {
+                    ...e,
+                    status: "done",
+                    error: undefined,
+                    draft: {
+                      analysis,
+                      runSettings: { ...settings },
+                      analysisId,
+                      blankMatches,
+                      createdAt: new Date().toISOString(),
+                    },
+                  }
+                : {
+                    ...e,
+                    status: "done",
+                    analysis,
+                    runSettings: { ...settings },
+                    analysisId,
+                    blankMatches,
+                    blankKeep: [],
+                    draft: undefined,
+                    error: undefined,
+                  }
               : e,
           ),
         );
@@ -149,22 +168,24 @@ export function AnalyzerApp() {
           ),
         );
       }
-      setAiReviews((prev) => {
-        if (!(entry.id in prev)) return prev;
-        const next = { ...prev };
-        delete next[entry.id];
-        return next;
-      });
+      if (mode === "commit") {
+        setAiReviews((prev) => {
+          if (!(entry.id in prev)) return prev;
+          const next = { ...prev };
+          delete next[entry.id];
+          return next;
+        });
+      }
     },
     [blanks.library],
   );
 
   const runList = useCallback(
-    async (list: ImageEntry[]) => {
+    async (list: ImageEntry[], mode: "commit" | "draft" = "commit") => {
       if (!list.length) return;
       setProgress({ running: true, done: 0, total: list.length });
       for (let i = 0; i < list.length; i++) {
-        await analyzeEntry(list[i]!);
+        await analyzeEntry(list[i]!, mode);
         setProgress({ running: true, done: i + 1, total: list.length });
         await new Promise((r) => setTimeout(r, 0));
       }
@@ -179,14 +200,56 @@ export function AnalyzerApp() {
     [entries, runList],
   );
 
+  /** Re-analysis of an already-analysed image produces a pending update. */
   const reanalyzeSelected = useCallback(() => {
-    if (current) void runList([current]);
+    if (!current) return;
+    void runList([current], current.analysis ? "draft" : "commit");
   }, [current, runList]);
 
   const reanalyzeStale = useCallback(
-    () => runList(entries.filter(isEntryStale)),
+    () => runList(entries.filter(isEntryStale), "draft"),
     [entries, runList],
   );
+
+  /** Writes a pending re-analysis into the original batch record, in place. */
+  const commitDraft = useCallback((id: string) => {
+    setEntries((prev) =>
+      prev.map((e) =>
+        e.id === id && e.draft
+          ? {
+              ...e,
+              analysis: e.draft.analysis,
+              runSettings: e.draft.runSettings,
+              analysisId: e.draft.analysisId,
+              blankMatches: e.draft.blankMatches,
+              blankKeep: [],
+              revision: (e.revision ?? 0) + 1,
+              updatedAt: new Date().toISOString(),
+              draft: undefined,
+            }
+          : e,
+      ),
+    );
+    setAiReviews((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }, []);
+
+  const commitAllDrafts = useCallback(() => {
+    entries.filter((e) => e.draft).forEach((e) => commitDraft(e.id));
+  }, [commitDraft, entries]);
+
+  const discardDraft = useCallback((id: string) => {
+    setEntries((prev) =>
+      prev.map((e) =>
+        e.id === id && e.draft ? { ...e, draft: undefined, settings: { ...e.runSettings! } } : e,
+      ),
+    );
+  }, []);
+
 
   const applyDefaultsToSelected = useCallback(() => {
     if (!selectedImage) return;
