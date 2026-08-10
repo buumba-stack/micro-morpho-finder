@@ -3,6 +3,18 @@ import type { BlankMatchMap } from "./blank-matching";
 
 export type ImageStatus = "pending" | "running" | "done" | "error";
 
+/**
+ * Result of re-analysing an already-analysed image, held aside until the user
+ * clicks "Update batch". The committed batch data stays untouched until then.
+ */
+export interface EntryDraft {
+  analysis: ImageAnalysis;
+  runSettings: AnalysisSettings;
+  analysisId: string;
+  blankMatches?: BlankMatchMap | undefined;
+  createdAt: string;
+}
+
 export interface ImageEntry {
   id: string;
   file: File;
@@ -16,12 +28,19 @@ export interface ImageEntry {
   /** changes whenever the detector re-segments this image (AI-review cache key) */
   analysisId?: string | undefined;
   analysis?: ImageAnalysis | undefined;
+  /** pending re-analysis awaiting the user's "Update batch" confirmation */
+  draft?: EntryDraft | undefined;
+  /** how many times this image's batch record has been updated by re-analysis */
+  revision?: number | undefined;
+  /** when this image's batch record was last updated */
+  updatedAt?: string | undefined;
   /** confirmed-artefact blank matches for the current analysis, per particle id */
   blankMatches?: BlankMatchMap | undefined;
   /** particle ids the user explicitly kept despite a blank match */
   blankKeep?: number[] | undefined;
   error?: string | undefined;
 }
+
 
 export const TISSUE_OPTIONS = ["Liver", "Intestine", "Positive control", "Blank"] as const;
 
