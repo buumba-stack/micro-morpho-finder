@@ -1,4 +1,4 @@
-import type { ImageEntry } from "@/lib/study-types";
+import { isEntryStale, type ImageEntry } from "@/lib/study-types";
 
 interface Props {
   entries: ImageEntry[];
@@ -24,6 +24,8 @@ export function ImageList({ entries, selectedId, onSelect, onRemove }: Props) {
       <ul className="min-h-0 flex-1 overflow-auto">
         {entries.map((e) => {
           const accepted = e.analysis?.particles.filter((p) => !p.rejected).length ?? 0;
+          const stale = isEntryStale(e);
+          const blankFlags = Object.keys(e.blankMatches ?? {}).length;
           return (
             <li key={e.id}>
               <button
@@ -38,9 +40,20 @@ export function ImageList({ entries, selectedId, onSelect, onRemove }: Props) {
                   <span className="label-caps">
                     {e.tissue}
                     {e.status === "done" ? ` · ${accepted} particles` : ""}
+                    {e.status === "done" ? ` · thr ${e.runSettings?.threshold ?? "—"}` : ""}
                     {e.status === "error" ? " · failed" : ""}
                   </span>
                 </span>
+                {blankFlags > 0 && (
+                  <span className="shrink-0 rounded border border-accent/50 px-1 font-mono text-[10px] text-accent">
+                    B{blankFlags}
+                  </span>
+                )}
+                {stale && (
+                  <span className="shrink-0 rounded bg-accent/20 px-1 font-mono text-[10px] text-accent">
+                    edited
+                  </span>
+                )}
                 <span
                   role="button"
                   tabIndex={-1}
