@@ -5,11 +5,13 @@ import {
   decodeToImageData,
   type AnalysisSettings,
 } from "@/lib/particle-analysis";
-import type { ImageEntry, RunProgress } from "@/lib/study-types";
+import { isEntryStale, type ImageEntry, type RunProgress } from "@/lib/study-types";
+import { computeBlankMatches } from "@/lib/blank-matching";
 import { SetupPanel } from "@/components/SetupPanel";
 import { ImageList } from "@/components/ImageList";
 import { ImageViewer } from "@/components/ImageViewer";
 import { ParticleTable } from "@/components/ParticleTable";
+import { BlankComparePanel } from "@/components/BlankComparePanel";
 import { SummaryPanel } from "@/components/SummaryPanel";
 import { AiPanel } from "@/components/AiPanel";
 import { BlankLibraryPanel } from "@/components/BlankLibraryPanel";
@@ -19,16 +21,15 @@ import { countConfirmed } from "@/lib/blank-library";
 import type { AiReview } from "@/lib/ai-client";
 
 export function AnalyzerApp() {
-  const [settings, setSettings] = useState<AnalysisSettings>(DEFAULT_SETTINGS);
+  /** defaults applied to newly added images only */
+  const [defaults, setDefaults] = useState<AnalysisSettings>(DEFAULT_SETTINGS);
   const [entries, setEntries] = useState<ImageEntry[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedParticle, setSelectedParticle] = useState<number | null>(null);
   const [progress, setProgress] = useState<RunProgress>({ running: false, done: 0, total: 0 });
-  const [runSignature, setRunSignature] = useState<string>("");
   const [aiReviews, setAiReviews] = useState<Record<string, AiReview[]>>({});
   const [view, setView] = useState<"analysis" | "blanks">("analysis");
   const blanks = useBlankLibrary();
-
 
   const setReviews = useCallback((imageId: string, list: AiReview[]) => {
     setAiReviews((prev) => ({ ...prev, [imageId]: list }));
@@ -54,62 +55,142 @@ export function AnalyzerApp() {
   }, []);
 
   const blankConfirmed = useMemo(() => countConfirmed(blanks.library), [blanks.library]);
-  const signature = JSON.stringify(settings);
 
-  const pendingCount = entries.filter((e) => e.status !== "done").length;
-  const staleSettings = runSignature !== "" && runSignature !== signature;
+  const current = useMemo(
+    () => entries.find((e) => e.id === selectedImage),
+    [entries, selectedImage],
+  );
 
-  const patchSettings = useCallback((patch: Partial<AnalysisSettings>) => {
-    setSettings((s) => ({ ...s, ...patch }));
-  }, []);
+  /** the settings shown in the left panel: selected image's own, else the defaults */
+  const activeSettings = current?.settings ?? defaults;
+  const selectedStale = current ? isEntryStale(current) : false;
+  const pendingCount = entries.filter((e) => e.status !== "done" && e.status !== "running").length;
+  const staleCount = entries.filter(isEntryStale).length;
 
-  const addFiles = useCallback((files: File[], tissue: string) => {
-    setEntries((prev) => [
-      ...prev,
-      ...files.map((file, i) => ({
-        id: `${Date.now()}-${i}-${file.name}`,
-        file,
-        name: file.name,
-        tissue,
-        status: "pending" as const,
-      })),
-    ]);
-  }, []);
-
-  const run = useCallback(async () => {
-    const targets = staleSettings ? entries : entries.filter((e) => e.status !== "done");
-    const list = targets.length ? targets : entries;
-    setProgress({ running: true, done: 0, total: list.length });
-
-    for (let i = 0; i < list.length; i++) {
-      const entry = list[i]!;
+  /** Edits the selected image's settings; with no selection, edits the defaults. */
+  const patchSettings = useCallback(
+    (patch: Partial<AnalysisSettings>) => {
+      if (!selectedImage) {
+        setDefaults((s) => ({ ...s, ...patch }));
+        return;
+      }
       setEntries((prev) =>
-        prev.map((e) => (e.id === entry.id ? { ...e, status: "running" } : e)),
+        prev.map((e) => (e.id === selectedImage ? { ...e, settings: { ...e.settings, ...patch } } : e)),
       );
+    },
+    [selectedImage],
+  );
+
+  const patchDefaults = useCallback((patch: Partial<AnalysisSettings>) => {
+    setDefaults((s) => ({ ...s, ...patch }));
+  }, []);
+
+  const addFiles = useCallback(
+    (files: File[], tissue: string) => {
+      setEntries((prev) => [
+        ...prev,
+        ...files.map((file, i) => ({
+          id: `${Date.now()}-${i}-${file.name}`,
+          file,
+          name: file.name,
+          tissue,
+          status: "pending" as const,
+          settings: { ...defaults },
+        })),
+      ]);
+    },
+    [defaults],
+  );
+
+  /** Analyzes exactly one image with its own settings; never touches the others. */
+  const analyzeEntry = useCallback(
+    async (entry: ImageEntry) => {
+      setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, status: "running" } : e)));
+      const settings = entry.settings;
       try {
         const { imageData } = await decodeToImageData(entry.file);
         const analysis = analyzeImageData(imageData, settings);
+        const blankMatches = computeBlankMatches(
+          imageData,
+          analysis.particles,
+          settings,
+          blanks.library,
+        );
         setEntries((prev) =>
           prev.map((e) =>
-            e.id === entry.id ? { ...e, status: "done", analysis, error: undefined } : e,
+            e.id === entry.id
+              ? {
+                  ...e,
+                  status: "done",
+                  analysis,
+                  runSettings: { ...settings },
+                  analysisId: `${Date.now()}`,
+                  blankMatches,
+                  blankKeep: [],
+                  error: undefined,
+                }
+              : e,
           ),
         );
       } catch (err) {
         setEntries((prev) =>
           prev.map((e) =>
             e.id === entry.id
-              ? { ...e, status: "error", error: err instanceof Error ? err.message : "decode failed" }
+              ? {
+                  ...e,
+                  status: "error",
+                  error: err instanceof Error ? err.message : "decode failed",
+                }
               : e,
           ),
         );
       }
-      setProgress({ running: true, done: i + 1, total: list.length });
-      await new Promise((r) => setTimeout(r, 0));
-    }
+      setAiReviews((prev) => {
+        if (!(entry.id in prev)) return prev;
+        const next = { ...prev };
+        delete next[entry.id];
+        return next;
+      });
+    },
+    [blanks.library],
+  );
 
-    setRunSignature(signature);
-    setProgress({ running: false, done: list.length, total: list.length });
-  }, [entries, settings, signature, staleSettings]);
+  const runList = useCallback(
+    async (list: ImageEntry[]) => {
+      if (!list.length) return;
+      setProgress({ running: true, done: 0, total: list.length });
+      for (let i = 0; i < list.length; i++) {
+        await analyzeEntry(list[i]!);
+        setProgress({ running: true, done: i + 1, total: list.length });
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      setProgress({ running: false, done: list.length, total: list.length });
+    },
+    [analyzeEntry],
+  );
+
+  /** Batch: only images that were never analyzed (or failed). Existing results stay. */
+  const runPending = useCallback(
+    () => runList(entries.filter((e) => e.status !== "done" && e.status !== "running")),
+    [entries, runList],
+  );
+
+  const reanalyzeSelected = useCallback(() => {
+    if (current) void runList([current]);
+  }, [current, runList]);
+
+  const reanalyzeStale = useCallback(() => runList(entries.filter(isEntryStale)), [entries, runList]);
+
+  const applyDefaultsToSelected = useCallback(() => {
+    if (!selectedImage) return;
+    setEntries((prev) =>
+      prev.map((e) => (e.id === selectedImage ? { ...e, settings: { ...defaults } } : e)),
+    );
+  }, [defaults, selectedImage]);
+
+  const copySelectedToDefaults = useCallback(() => {
+    if (current) setDefaults({ ...current.settings });
+  }, [current]);
 
   const toggleReject = useCallback(
     (particleId: number) => {
@@ -133,14 +214,80 @@ export function AnalyzerApp() {
     [selectedImage],
   );
 
+  const setRejected = useCallback(
+    (particleId: number, rejected: boolean) => {
+      if (!selectedImage) return;
+      setEntries((prev) =>
+        prev.map((e) =>
+          e.id === selectedImage && e.analysis
+            ? {
+                ...e,
+                analysis: {
+                  ...e.analysis,
+                  particles: e.analysis.particles.map((p) =>
+                    p.id === particleId ? { ...p, rejected } : p,
+                  ),
+                },
+              }
+            : e,
+        ),
+      );
+    },
+    [selectedImage],
+  );
+
+  /** Marks a blank-matched particle as reviewed-and-kept (flag stays visible, muted). */
+  const keepDespiteBlank = useCallback(
+    (particleId: number) => {
+      if (!selectedImage) return;
+      setEntries((prev) =>
+        prev.map((e) =>
+          e.id === selectedImage
+            ? {
+                ...e,
+                blankKeep: [...new Set([...(e.blankKeep ?? []), particleId])],
+                analysis: e.analysis
+                  ? {
+                      ...e.analysis,
+                      particles: e.analysis.particles.map((p) =>
+                        p.id === particleId ? { ...p, rejected: false } : p,
+                      ),
+                    }
+                  : e.analysis,
+              }
+            : e,
+        ),
+      );
+    },
+    [selectedImage],
+  );
+
+  const excludeAsBlank = useCallback(
+    (particleId: number) => {
+      setRejected(particleId, true);
+      if (!selectedImage) return;
+      setEntries((prev) =>
+        prev.map((e) =>
+          e.id === selectedImage
+            ? { ...e, blankKeep: (e.blankKeep ?? []).filter((id) => id !== particleId) }
+            : e,
+        ),
+      );
+    },
+    [selectedImage, setRejected],
+  );
+
+  const excludeAllHighConfidenceBlanks = useCallback(() => {
+    if (!current?.blankMatches) return;
+    const ids = Object.values(current.blankMatches)
+      .filter((m) => m.highConfidence && !(current.blankKeep ?? []).includes(m.particleId))
+      .map((m) => m.particleId);
+    if (ids.length) applyExclusions(current.id, ids);
+  }, [applyExclusions, current]);
+
   const removeEntry = useCallback((id: string) => {
     setEntries((prev) => prev.filter((e) => e.id !== id));
   }, []);
-
-  const current = useMemo(
-    () => entries.find((e) => e.id === selectedImage),
-    [entries, selectedImage],
-  );
 
   useEffect(() => {
     if (!selectedImage && entries.length) setSelectedImage(entries[0]!.id);
@@ -160,20 +307,20 @@ export function AnalyzerApp() {
           </h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
             ImageJ-equivalent particle analysis for fluorescence photomicrographs: 8-bit conversion,
-            fixed threshold, binary particle detection, then Area, Perimeter, Feret's diameter,
+            per-image threshold, binary particle detection, then Area, Perimeter, Feret's diameter,
             bounding rectangle, aspect ratio and circularity per particle — classified as fibre,
-            sphere, pellet or fragment. Everything runs locally in your browser; images are never
-            uploaded.
+            sphere, pellet or fragment. Each image keeps its own settings; everything runs locally in
+            your browser and images are never uploaded.
           </p>
         </div>
         <dl className="flex gap-5 font-mono text-xs text-muted-foreground">
           <div>
-            <dt className="label-caps">Scale</dt>
-            <dd className="text-foreground">{settings.umPerPx} µm/px</dd>
+            <dt className="label-caps">{current ? "Image scale" : "Default scale"}</dt>
+            <dd className="text-foreground">{activeSettings.umPerPx} µm/px</dd>
           </div>
           <div>
-            <dt className="label-caps">Threshold</dt>
-            <dd className="text-foreground">{settings.threshold}</dd>
+            <dt className="label-caps">{current ? "Image threshold" : "Default threshold"}</dt>
+            <dd className="text-foreground">{activeSettings.threshold}</dd>
           </div>
           <div>
             <dt className="label-caps">Images</dt>
@@ -203,51 +350,72 @@ export function AnalyzerApp() {
         ))}
       </nav>
 
-      {staleSettings && !progress.running && view === "analysis" && (
-        <p className="rounded-md border border-accent/40 bg-accent/10 px-3 py-2 font-mono text-xs text-accent">
-          Settings changed since the last run — re-analyze to apply the new scale/threshold/filters.
+      {staleCount > 0 && !progress.running && view === "analysis" && (
+        <p className="flex flex-wrap items-center gap-3 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 font-mono text-xs text-accent">
+          <span>
+            {staleCount} image{staleCount === 1 ? "" : "s"} have edited settings that are not applied
+            yet. Existing results are untouched until you re-analyze.
+          </span>
+          <button className="btn-ghost px-2 py-0.5" onClick={reanalyzeStale}>
+            Re-analyze {staleCount} changed image{staleCount === 1 ? "" : "s"}
+          </button>
         </p>
       )}
 
-      {view === "blanks" && <BlankLibraryPanel settings={settings} api={blanks} />}
+      {view === "blanks" && <BlankLibraryPanel settings={defaults} api={blanks} />}
 
       <div
         className={`${view === "analysis" ? "grid" : "hidden"} min-h-0 flex-1 gap-4 xl:grid-cols-[300px_minmax(0,1fr)_360px]`}
       >
-
         <div className="flex min-h-0 flex-col gap-4">
           <SetupPanel
-            settings={settings}
+            settings={activeSettings}
             onChange={patchSettings}
+            scope={current ? "image" : "defaults"}
+            selectedName={current?.name}
+            selectedAnalyzed={current?.status === "done"}
+            selectedStale={selectedStale}
+            onReanalyzeSelected={reanalyzeSelected}
+            onApplyDefaultsToSelected={applyDefaultsToSelected}
+            onCopySelectedToDefaults={copySelectedToDefaults}
+            onChangeDefaults={patchDefaults}
+            defaults={defaults}
             onAddFiles={addFiles}
-            onRun={run}
+            onRun={runPending}
             onClear={() => setEntries([])}
             progress={progress}
             imageCount={entries.length}
-            pendingCount={staleSettings ? entries.length : pendingCount}
+            pendingCount={pendingCount}
           />
         </div>
 
         <div className="flex min-h-[70vh] flex-col gap-4">
           <ImageViewer
             entry={current}
-            threshold={settings.threshold}
+            threshold={activeSettings.threshold}
             selectedId={selectedParticle}
             onSelect={setSelectedParticle}
             onToggleReject={toggleReject}
+          />
+          <BlankComparePanel
+            entry={current}
+            selectedId={selectedParticle}
+            onSelect={setSelectedParticle}
+            onExclude={excludeAsBlank}
+            onKeep={keepDespiteBlank}
+            onExcludeAllHighConfidence={excludeAllHighConfidenceBlanks}
           />
           <SummaryPanel entries={entries} />
           <AiPanel
             entry={current}
             entries={entries}
-            settings={settings}
+            settings={activeSettings}
             reviews={aiReviews}
             onReviews={setReviews}
             onSelectParticle={setSelectedParticle}
             onApplyExclusions={applyExclusions}
           />
         </div>
-
 
         <div className="flex min-h-0 flex-col gap-4">
           <ImageList
@@ -259,6 +427,8 @@ export function AnalyzerApp() {
           <div className="min-h-[45vh] flex flex-col">
             <ParticleTable
               particles={current?.analysis?.particles ?? []}
+              blankMatches={current?.blankMatches}
+              blankKeep={current?.blankKeep}
               selectedId={selectedParticle}
               onSelect={setSelectedParticle}
               onToggleReject={toggleReject}
