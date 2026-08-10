@@ -59,28 +59,22 @@ export function AiPanel({
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [messages]);
 
-  const runQc = useCallback(async () => {
-    if (!entry || !entry.analysis) return;
-    if (!isOnline()) {
-      setError("AI review needs an internet connection.");
-      return;
-    }
-    setBusy(true);
-    setError("");
-    const all: AiReview[] = [];
-    try {
-      const targets = entry.analysis.particles;
+  const reviewEntry = useCallback(
+    async (target: ImageEntry, label: string) => {
+      if (!target.analysis) return;
+      const all: AiReview[] = [];
+      const targets = target.analysis.particles;
       for (let i = 0; i < targets.length; i += BATCH) {
         const chunk = targets.slice(i, i + BATCH);
         setStatus(
-          `Reviewing ${i + 1}-${Math.min(i + BATCH, targets.length)} of ${targets.length}…`,
+          `${label} — ${i + 1}-${Math.min(i + BATCH, targets.length)} of ${targets.length}…`,
         );
-        const crops = await buildParticleCrops(entry, chunk);
+        const crops = await buildParticleCrops(target, chunk);
         const got = await requestQc({
-          file: entry.name,
-          tissue: entry.tissue,
-          umPerPx: entry.runSettings?.umPerPx ?? settings.umPerPx,
-          threshold: entry.runSettings?.threshold ?? settings.threshold,
+          file: target.name,
+          tissue: target.tissue,
+          umPerPx: target.runSettings?.umPerPx ?? settings.umPerPx,
+          threshold: target.runSettings?.threshold ?? settings.threshold,
           particles: chunk.map((p) => ({
             id: p.id,
             area: p.area,
@@ -94,27 +88,67 @@ export function AiPanel({
             morphology: p.morphology,
             touchesBorder: p.touchesBorder,
             ...(crops.get(p.id) ? { crop: crops.get(p.id)! } : {}),
-            ...(entry.blankMatches?.[p.id]
+            ...(target.blankMatches?.[p.id]
               ? {
-                  blankSimilarity: entry.blankMatches[p.id]!.similarity,
-                  blankReference: entry.blankMatches[p.id]!.matches[0]?.referenceId ?? "",
-                  ...(entry.blankMatches[p.id]!.matches[0]?.crop
-                    ? { blankCrop: entry.blankMatches[p.id]!.matches[0]!.crop }
+                  blankSimilarity: target.blankMatches[p.id]!.similarity,
+                  blankReference: target.blankMatches[p.id]!.matches[0]?.referenceId ?? "",
+                  ...(target.blankMatches[p.id]!.matches[0]?.crop
+                    ? { blankCrop: target.blankMatches[p.id]!.matches[0]!.crop }
                     : {}),
                 }
               : {}),
           })),
         });
         all.push(...got);
-        onReviews(entry.id, [...all]);
+        onReviews(target.id, [...all]);
       }
-      setStatus(`Reviewed ${all.length} particle${all.length === 1 ? "" : "s"}.`);
+      return all.length;
+    },
+    [onReviews, settings],
+  );
+
+  const runQc = useCallback(async () => {
+    if (!entry || !entry.analysis) return;
+    if (!isOnline()) {
+      setError("AI review needs an internet connection.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const n = await reviewEntry(entry, `Reviewing ${entry.name}`);
+      setStatus(`Reviewed ${n ?? 0} particle${n === 1 ? "" : "s"}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "AI review failed");
     } finally {
       setBusy(false);
     }
-  }, [entry, settings, onReviews]);
+  }, [entry, reviewEntry]);
+
+  /** Final pass over the whole updated batch, image by image. */
+  const runQcAll = useCallback(async () => {
+    const list = entries.filter((e) => e.analysis && !e.draft);
+    if (!list.length) return;
+    if (!isOnline()) {
+      setError("AI review needs an internet connection.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    let total = 0;
+    try {
+      for (let i = 0; i < list.length; i++) {
+        const n = await reviewEntry(list[i]!, `Image ${i + 1}/${list.length} · ${list[i]!.name}`);
+        total += n ?? 0;
+      }
+      setStatus(`Final review complete — ${total} particles across ${list.length} images.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI review failed");
+    } finally {
+      setBusy(false);
+    }
+  }, [entries, reviewEntry]);
+
 
   const send = useCallback(async () => {
     const text = draft.trim();
