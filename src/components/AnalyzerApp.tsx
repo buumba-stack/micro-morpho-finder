@@ -31,7 +31,11 @@ export function AnalyzerApp() {
   const [progress, setProgress] = useState<RunProgress>({ running: false, done: 0, total: 0 });
   const [aiReviews, setAiReviews] = useState<Record<string, AiReview[]>>({});
   const [view, setView] = useState<"analysis" | "blanks">("analysis");
+  /** false until the saved batch (if any) has been restored from local storage */
+  const [sessionReady, setSessionReady] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
   const blanks = useBlankLibrary();
+
 
   const setReviews = useCallback((imageId: string, list: AiReview[]) => {
     setAiReviews((prev) => ({ ...prev, [imageId]: list }));
