@@ -297,7 +297,10 @@ export function ImageViewer({
           <span className="h-2.5 w-2.5 rounded-sm border border-dashed border-accent" />
           blank match (B%)
         </span>
-        <span className="ml-auto label-caps">click number/outline = select · Del = delete &amp; renumber · double-click = reject/restore</span>
+        <span className="ml-auto label-caps">
+          click number/outline = select · Del = delete &amp; renumber · double-click =
+          reject/restore
+        </span>
       </div>
     </div>
   );

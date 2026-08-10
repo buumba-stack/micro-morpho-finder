@@ -67,7 +67,6 @@ export function AiPanel({
   );
   const selectedHasDraft = Boolean(entry?.draft);
 
-
   const digest = useMemo(() => datasetDigest(entries, settings), [entries, settings]);
 
   useEffect(() => {
@@ -167,7 +166,6 @@ export function AiPanel({
       setBusy(false);
     }
   }, [entries, reviewEntry]);
-
 
   const send = useCallback(async () => {
     const text = draft.trim();
@@ -284,8 +282,8 @@ export function AiPanel({
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-[11px] text-muted-foreground">
                     {reviewedTotal} particle{reviewedTotal === 1 ? "" : "s"} reviewed across{" "}
-                    {reviewed.length} batch image{reviewed.length === 1 ? "" : "s"} ·{" "}
-                    {flaggedTotal} flagged
+                    {reviewed.length} batch image{reviewed.length === 1 ? "" : "s"} · {flaggedTotal}{" "}
+                    flagged
                   </span>
                   <button
                     className="btn-primary ml-auto px-2 py-0.5"
@@ -302,7 +300,8 @@ export function AiPanel({
                       className="flex items-center justify-between gap-2 border-b border-border pb-1 text-left font-mono text-[11px] hover:text-primary"
                     >
                       <span className="truncate">
-                        {g.entry.name} <span className="text-muted-foreground">[{g.entry.tissue}]</span>
+                        {g.entry.name}{" "}
+                        <span className="text-muted-foreground">[{g.entry.tissue}]</span>
                       </span>
                       <span className="text-muted-foreground">
                         thr {g.entry.runSettings?.threshold ?? "—"} ·{" "}

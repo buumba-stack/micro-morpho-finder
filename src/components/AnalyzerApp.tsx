@@ -20,7 +20,6 @@ import { useBlankLibrary } from "@/hooks/useBlankLibrary";
 import { countConfirmed } from "@/lib/blank-library";
 import { clearSession, loadSession, saveSession } from "@/lib/session-store";
 
-
 import type { AiReview } from "@/lib/ai-client";
 
 export function AnalyzerApp() {
@@ -36,7 +35,6 @@ export function AnalyzerApp() {
   const [sessionReady, setSessionReady] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const blanks = useBlankLibrary();
-
 
   const setReviews = useCallback((imageId: string, list: AiReview[]) => {
     setAiReviews((prev) => ({ ...prev, [imageId]: list }));
@@ -87,7 +85,6 @@ export function AnalyzerApp() {
     );
   }, [aiReviews]);
 
-
   const blankConfirmed = useMemo(() => countConfirmed(blanks.library), [blanks.library]);
 
   const current = useMemo(
@@ -116,7 +113,6 @@ export function AnalyzerApp() {
       blankKeep: [],
     };
   }, [current]);
-
 
   /** Edits the selected image's settings; with no selection, edits the defaults. */
   const patchSettings = useCallback(
@@ -295,7 +291,6 @@ export function AnalyzerApp() {
     );
   }, []);
 
-
   const applyDefaultsToSelected = useCallback(() => {
     if (!selectedImage) return;
     setEntries((prev) =>
@@ -313,7 +308,6 @@ export function AnalyzerApp() {
       setEntries((prev) =>
         prev.map((e) =>
           e.id === selectedImage && e.analysis && !e.draft
-
             ? {
                 ...e,
                 analysis: {
@@ -336,7 +330,6 @@ export function AnalyzerApp() {
       setEntries((prev) =>
         prev.map((e) =>
           e.id === selectedImage && e.analysis && !e.draft
-
             ? {
                 ...e,
                 analysis: {
@@ -395,8 +388,6 @@ export function AnalyzerApp() {
     },
     [selectedImage],
   );
-
-
 
   /** Marks a blank-matched particle as reviewed-and-kept (flag stays visible, muted). */
   const keepDespiteBlank = useCallback(
@@ -486,7 +477,6 @@ export function AnalyzerApp() {
     return () => clearTimeout(t);
   }, [entries, defaults, sessionReady, progress.running]);
 
-
   useEffect(() => {
     if (!selectedImage && entries.length) setSelectedImage(entries[0]!.id);
     if (selectedImage && !entries.some((e) => e.id === selectedImage)) {
@@ -531,7 +521,6 @@ export function AnalyzerApp() {
             </dd>
           </div>
         </dl>
-
       </header>
 
       <nav className="flex gap-1 border-b border-border">
@@ -576,7 +565,10 @@ export function AnalyzerApp() {
           <ul className="flex flex-col gap-1 font-mono text-[11px] text-muted-foreground">
             {draftEntries.map((e) => (
               <li key={e.id} className="flex flex-wrap items-center gap-2">
-                <button className="underline-offset-2 hover:underline" onClick={() => setSelectedImage(e.id)}>
+                <button
+                  className="underline-offset-2 hover:underline"
+                  onClick={() => setSelectedImage(e.id)}
+                >
                   {e.name}
                 </button>
                 <span>
@@ -600,7 +592,6 @@ export function AnalyzerApp() {
           )}
         </div>
       )}
-
 
       {view === "blanks" && <BlankLibraryPanel settings={defaults} api={blanks} />}
 
