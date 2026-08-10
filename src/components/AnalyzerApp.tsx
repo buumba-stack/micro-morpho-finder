@@ -75,7 +75,9 @@ export function AnalyzerApp() {
         return;
       }
       setEntries((prev) =>
-        prev.map((e) => (e.id === selectedImage ? { ...e, settings: { ...e.settings, ...patch } } : e)),
+        prev.map((e) =>
+          e.id === selectedImage ? { ...e, settings: { ...e.settings, ...patch } } : e,
+        ),
       );
     },
     [selectedImage],
@@ -175,7 +177,10 @@ export function AnalyzerApp() {
     if (current) void runList([current]);
   }, [current, runList]);
 
-  const reanalyzeStale = useCallback(() => runList(entries.filter(isEntryStale)), [entries, runList]);
+  const reanalyzeStale = useCallback(
+    () => runList(entries.filter(isEntryStale)),
+    [entries, runList],
+  );
 
   const applyDefaultsToSelected = useCallback(() => {
     if (!selectedImage) return;
@@ -305,8 +310,8 @@ export function AnalyzerApp() {
             ImageJ-equivalent particle analysis for fluorescence photomicrographs: 8-bit conversion,
             per-image threshold, binary particle detection, then Area, Perimeter, Feret's diameter,
             bounding rectangle, aspect ratio and circularity per particle — classified as fibre,
-            sphere, pellet or fragment. Each image keeps its own settings; everything runs locally in
-            your browser and images are never uploaded.
+            sphere, pellet or fragment. Each image keeps its own settings; everything runs locally
+            in your browser and images are never uploaded.
           </p>
         </div>
         <dl className="flex gap-5 font-mono text-xs text-muted-foreground">
@@ -349,8 +354,8 @@ export function AnalyzerApp() {
       {staleCount > 0 && !progress.running && view === "analysis" && (
         <p className="flex flex-wrap items-center gap-3 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 font-mono text-xs text-accent">
           <span>
-            {staleCount} image{staleCount === 1 ? "" : "s"} have edited settings that are not applied
-            yet. Existing results are untouched until you re-analyze.
+            {staleCount} image{staleCount === 1 ? "" : "s"} have edited settings that are not
+            applied yet. Existing results are untouched until you re-analyze.
           </span>
           <button className="btn-ghost px-2 py-0.5" onClick={reanalyzeStale}>
             Re-analyze {staleCount} changed image{staleCount === 1 ? "" : "s"}
@@ -433,8 +438,8 @@ export function AnalyzerApp() {
       </div>
 
       <footer className="label-caps pb-2">
-        Classification: fibre AR ≤ 0.33 or ≥ 3 · sphere circ &gt; 0.90 · pellet 0.60 &lt; circ ≤ 0.90
-        · fragment circ ≤ 0.60 · circularity = 4π·area/perimeter² · aspect ratio = width/height
+        Classification: fibre AR ≤ 0.33 or ≥ 3 · sphere circ &gt; 0.90 · pellet 0.60 &lt; circ ≤
+        0.90 · fragment circ ≤ 0.60 · circularity = 4π·area/perimeter² · aspect ratio = width/height
       </footer>
     </main>
   );

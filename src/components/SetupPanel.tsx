@@ -96,8 +96,8 @@ export function SetupPanel({
           />
         </label>
         <p className="text-[11px] leading-snug text-muted-foreground">
-          Grayscale ≥ threshold counts as fluorescent signal. The Binary view previews this value for
-          the selected image; results only change when you re-analyze it.
+          Grayscale ≥ threshold counts as fluorescent signal. The Binary view previews this value
+          for the selected image; results only change when you re-analyze it.
         </p>
       </section>
 
@@ -201,8 +201,8 @@ export function SetupPanel({
             </button>
           </div>
           <p className="text-[11px] leading-snug text-muted-foreground">
-            Defaults ({defaults.umPerPx} µm/px · threshold {defaults.threshold}) apply only to images
-            you add from now on.
+            Defaults ({defaults.umPerPx} µm/px · threshold {defaults.threshold}) apply only to
+            images you add from now on.
           </p>
         </section>
       )}
@@ -211,13 +211,12 @@ export function SetupPanel({
         <section className="flex flex-col gap-2 border-t border-border pt-3">
           <h3 className="text-sm font-semibold">4 · Per-image analysis</h3>
           <p className="text-[11px] leading-snug text-muted-foreground">
-            Select an image in the list to edit and re-analyze that image on its own. The values above
-            are the defaults ({defaults.umPerPx} µm/px · threshold {defaults.threshold}) used for
-            images you add next.
+            Select an image in the list to edit and re-analyze that image on its own. The values
+            above are the defaults ({defaults.umPerPx} µm/px · threshold {defaults.threshold}) used
+            for images you add next.
           </p>
         </section>
       )}
-
 
       <section className="flex flex-col gap-2 border-t border-border pt-3">
         <h3 className="text-sm font-semibold">5 · Add micrographs</h3>

@@ -15,13 +15,7 @@ interface Props {
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const n = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : "—");
 
-function MatchCard({
-  match,
-  sample,
-}: {
-  match: BlankMatchDetail;
-  sample: ParticleBlankMatch;
-}) {
+function MatchCard({ match, sample }: { match: BlankMatchDetail; sample: ParticleBlankMatch }) {
   const [context, setContext] = useState(false);
   return (
     <div className="rounded-md border border-border p-2">
@@ -170,10 +164,7 @@ export function BlankComparePanel({
                 {kept.has(active.particleId) ? " · kept by reviewer" : ""}
               </span>
               <span className="ml-auto flex gap-2">
-                <button
-                  className="btn-ghost px-2 py-1"
-                  onClick={() => onKeep(active.particleId)}
-                >
+                <button className="btn-ghost px-2 py-1" onClick={() => onKeep(active.particleId)}>
                   Keep particle
                 </button>
                 <button

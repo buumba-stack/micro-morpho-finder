@@ -1,9 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  decodeToImageData,
-  thresholdPreview,
-  type Particle,
-} from "@/lib/particle-analysis";
+import { decodeToImageData, thresholdPreview, type Particle } from "@/lib/particle-analysis";
 import type { ImageEntry } from "@/lib/study-types";
 
 const MORPH_VAR: Record<string, string> = {
@@ -36,7 +32,6 @@ export function ImageViewer({ entry, threshold, selectedId, onSelect, onToggleRe
   const blankMatches = entry?.blankMatches;
   const keptIds = useMemo(() => new Set(entry?.blankKeep ?? []), [entry?.blankKeep]);
 
-
   useEffect(() => {
     let cancelled = false;
     if (!entry) {
@@ -66,11 +61,7 @@ export function ImageViewer({ entry, threshold, selectedId, onSelect, onToggleRe
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.putImageData(
-      mode === "binary" ? thresholdPreview(imageData, threshold) : imageData,
-      0,
-      0,
-    );
+    ctx.putImageData(mode === "binary" ? thresholdPreview(imageData, threshold) : imageData, 0, 0);
 
     if (!showOutlines) return;
     const rejectedColor = cssColor("--rejected");
@@ -139,7 +130,6 @@ export function ImageViewer({ entry, threshold, selectedId, onSelect, onToggleRe
     blankMatches,
     keptIds,
   ]);
-
 
   const hitTest = (x: number, y: number): Particle | null => {
     let best: Particle | null = null;
@@ -211,13 +201,19 @@ export function ImageViewer({ entry, threshold, selectedId, onSelect, onToggleRe
           IDs
         </label>
         <div className="flex items-center gap-1">
-          <button className="btn-ghost px-2 py-1" onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}>
+          <button
+            className="btn-ghost px-2 py-1"
+            onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
+          >
             −
           </button>
           <span className="w-12 text-center font-mono text-[11px] text-muted-foreground">
             {Math.round(zoom * 100)}%
           </span>
-          <button className="btn-ghost px-2 py-1" onClick={() => setZoom((z) => Math.min(4, z + 0.25))}>
+          <button
+            className="btn-ghost px-2 py-1"
+            onClick={() => setZoom((z) => Math.min(4, z + 0.25))}
+          >
             +
           </button>
         </div>
@@ -258,15 +254,11 @@ export function ImageViewer({ entry, threshold, selectedId, onSelect, onToggleRe
       <div className="flex flex-wrap items-center gap-4 border-t border-border px-3 py-2">
         {Object.entries(MORPH_VAR).map(([name, v]) => (
           <span key={name} className="flex items-center gap-1.5 label-caps">
-            <span
-              className="h-2.5 w-2.5 rounded-sm"
-              style={{ backgroundColor: `var(${v})` }}
-            />
+            <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: `var(${v})` }} />
             {name}
           </span>
         ))}
         <span className="flex items-center gap-1.5 label-caps">
-
           <span className="h-2.5 w-2.5 rounded-sm bg-rejected" />
           rejected
         </span>
@@ -275,7 +267,6 @@ export function ImageViewer({ entry, threshold, selectedId, onSelect, onToggleRe
           blank match (B%)
         </span>
         <span className="ml-auto label-caps">click = select · double-click = reject/restore</span>
-
       </div>
     </div>
   );
