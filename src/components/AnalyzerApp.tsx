@@ -17,6 +17,8 @@ import { AiPanel } from "@/components/AiPanel";
 import { BlankLibraryPanel } from "@/components/BlankLibraryPanel";
 import { useBlankLibrary } from "@/hooks/useBlankLibrary";
 import { countConfirmed } from "@/lib/blank-library";
+import { clearSession, loadSession, saveSession } from "@/lib/session-store";
+
 
 import type { AiReview } from "@/lib/ai-client";
 
@@ -29,7 +31,11 @@ export function AnalyzerApp() {
   const [progress, setProgress] = useState<RunProgress>({ running: false, done: 0, total: 0 });
   const [aiReviews, setAiReviews] = useState<Record<string, AiReview[]>>({});
   const [view, setView] = useState<"analysis" | "blanks">("analysis");
+  /** false until the saved batch (if any) has been restored from local storage */
+  const [sessionReady, setSessionReady] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
   const blanks = useBlankLibrary();
+
 
   const setReviews = useCallback((imageId: string, list: AiReview[]) => {
     setAiReviews((prev) => ({ ...prev, [imageId]: list }));
@@ -290,6 +296,42 @@ export function AnalyzerApp() {
     setEntries((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
+  const clearAll = useCallback(() => {
+    setEntries([]);
+    setAiReviews({});
+    setSavedAt(null);
+    void clearSession();
+  }, []);
+
+  /** Restore the previously analyzed batch so results survive reloads/crashes. */
+  useEffect(() => {
+    let cancelled = false;
+    void loadSession().then((saved) => {
+      if (cancelled) return;
+      if (saved?.entries.length) {
+        setEntries(saved.entries);
+        setDefaults(saved.defaults ?? DEFAULT_SETTINGS);
+        setSavedAt(saved.savedAt);
+      }
+      setSessionReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** Auto-save the batch (debounced) whenever results or settings change. */
+  useEffect(() => {
+    if (!sessionReady || progress.running) return;
+    const t = setTimeout(() => {
+      void saveSession(entries, defaults).then((ok) => {
+        if (ok) setSavedAt(new Date().toISOString());
+      });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [entries, defaults, sessionReady, progress.running]);
+
+
   useEffect(() => {
     if (!selectedImage && entries.length) setSelectedImage(entries[0]!.id);
     if (selectedImage && !entries.some((e) => e.id === selectedImage)) {
@@ -327,7 +369,14 @@ export function AnalyzerApp() {
             <dt className="label-caps">Images</dt>
             <dd className="text-foreground">{entries.length}</dd>
           </div>
+          <div>
+            <dt className="label-caps">Batch saved</dt>
+            <dd className="text-foreground">
+              {savedAt ? new Date(savedAt).toLocaleTimeString() : "—"}
+            </dd>
+          </div>
         </dl>
+
       </header>
 
       <nav className="flex gap-1 border-b border-border">
@@ -382,7 +431,7 @@ export function AnalyzerApp() {
             defaults={defaults}
             onAddFiles={addFiles}
             onRun={runPending}
-            onClear={() => setEntries([])}
+            onClear={clearAll}
             progress={progress}
             imageCount={entries.length}
             pendingCount={pendingCount}
