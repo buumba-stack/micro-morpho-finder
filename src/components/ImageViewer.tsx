@@ -266,10 +266,16 @@ export function ImageViewer({ entry, threshold, selectedId, onSelect, onToggleRe
           </span>
         ))}
         <span className="flex items-center gap-1.5 label-caps">
+        <span className="flex items-center gap-1.5 label-caps">
           <span className="h-2.5 w-2.5 rounded-sm bg-rejected" />
           rejected
         </span>
+        <span className="flex items-center gap-1.5 label-caps">
+          <span className="h-2.5 w-2.5 rounded-sm border border-dashed border-accent" />
+          blank match (B%)
+        </span>
         <span className="ml-auto label-caps">click = select · double-click = reject/restore</span>
+
       </div>
     </div>
   );
