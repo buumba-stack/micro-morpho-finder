@@ -60,6 +60,33 @@ export function AnalyzerApp() {
     );
   }, []);
 
+  /**
+   * Accepts the AI review across the whole batch: every "exclude" verdict is
+   * written into the batch-processed results of its own image at once.
+   */
+  const acceptAiReviews = useCallback(() => {
+    setEntries((prev) =>
+      prev.map((e) => {
+        const list = aiReviews[e.id];
+        if (!list || !e.analysis) return e;
+        const flagged = new Set(list.filter((r) => r.verdict === "exclude").map((r) => r.id));
+        if (!flagged.size) return e;
+        return {
+          ...e,
+          analysis: {
+            ...e.analysis,
+            particles: e.analysis.particles.map((p) =>
+              flagged.has(p.id) ? { ...p, rejected: true } : p,
+            ),
+          },
+          revision: (e.revision ?? 0) + 1,
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    );
+  }, [aiReviews]);
+
+
   const blankConfirmed = useMemo(() => countConfirmed(blanks.library), [blanks.library]);
 
   const current = useMemo(
