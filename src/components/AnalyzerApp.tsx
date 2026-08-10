@@ -424,7 +424,7 @@ export function AnalyzerApp() {
             defaults={defaults}
             onAddFiles={addFiles}
             onRun={runPending}
-            onClear={() => setEntries([])}
+            onClear={clearAll}
             progress={progress}
             imageCount={entries.length}
             pendingCount={pendingCount}
