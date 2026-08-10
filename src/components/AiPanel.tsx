@@ -72,13 +72,15 @@ export function AiPanel({
       const targets = entry.analysis.particles;
       for (let i = 0; i < targets.length; i += BATCH) {
         const chunk = targets.slice(i, i + BATCH);
-        setStatus(`Reviewing ${i + 1}-${Math.min(i + BATCH, targets.length)} of ${targets.length}…`);
+        setStatus(
+          `Reviewing ${i + 1}-${Math.min(i + BATCH, targets.length)} of ${targets.length}…`,
+        );
         const crops = await buildParticleCrops(entry, chunk);
         const got = await requestQc({
           file: entry.name,
           tissue: entry.tissue,
-          umPerPx: settings.umPerPx,
-          threshold: settings.threshold,
+          umPerPx: entry.runSettings?.umPerPx ?? settings.umPerPx,
+          threshold: entry.runSettings?.threshold ?? settings.threshold,
           particles: chunk.map((p) => ({
             id: p.id,
             area: p.area,
@@ -92,6 +94,15 @@ export function AiPanel({
             morphology: p.morphology,
             touchesBorder: p.touchesBorder,
             ...(crops.get(p.id) ? { crop: crops.get(p.id)! } : {}),
+            ...(entry.blankMatches?.[p.id]
+              ? {
+                  blankSimilarity: entry.blankMatches[p.id]!.similarity,
+                  blankReference: entry.blankMatches[p.id]!.matches[0]?.referenceId ?? "",
+                  ...(entry.blankMatches[p.id]!.matches[0]?.crop
+                    ? { blankCrop: entry.blankMatches[p.id]!.matches[0]!.crop }
+                    : {}),
+                }
+              : {}),
           })),
         });
         all.push(...got);
@@ -141,7 +152,9 @@ export function AiPanel({
               key={t}
               onClick={() => setTab(t)}
               className={`rounded px-2 py-1 font-mono text-[11px] uppercase tracking-wide ${
-                tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"
+                tab === t
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary"
               }`}
             >
               {t === "qc" ? "AI review" : "Ask the data"}
@@ -160,9 +173,11 @@ export function AiPanel({
       {tab === "qc" ? (
         <div className="flex min-h-0 flex-col gap-2 p-3">
           <p className="text-[11px] leading-snug text-muted-foreground">
-            Sends each particle's measurements plus a zoomed crop with its detected outline to GPT-5,
-            which confirms the fibre/sphere/pellet/fragment call and flags overlapping particles,
-            incomplete outlines, border contact and fluorescence unlike the positive controls.
+            Sends each particle's measurements plus a zoomed crop with its detected outline to
+            GPT-5, which confirms the fibre/sphere/pellet/fragment call and flags overlapping
+            particles, incomplete outlines, border contact and fluorescence unlike the positive
+            controls. Blank matches are sent along as visual evidence; uncertain objects are always
+            kept.
           </p>
           <div className="flex gap-2">
             <button
@@ -170,7 +185,9 @@ export function AiPanel({
               disabled={busy || !particles.length}
               onClick={runQc}
             >
-              {busy ? "Reviewing…" : `AI review ${particles.length} particle${particles.length === 1 ? "" : "s"}`}
+              {busy
+                ? "Reviewing…"
+                : `AI review ${particles.length} particle${particles.length === 1 ? "" : "s"}`}
             </button>
             <button
               className="btn-ghost"
@@ -222,8 +239,8 @@ export function AiPanel({
           <div ref={logRef} className="min-h-[180px] flex-1 overflow-auto p-3">
             {messages.length === 0 ? (
               <p className="text-[11px] leading-snug text-muted-foreground">
-                Ask about your results — e.g. “Compare fibre share between liver and intestine”, “Which
-                images have unusually large particles?”, “Summarise mean Feret per tissue”.
+                Ask about your results — e.g. “Compare fibre share between liver and intestine”,
+                “Which images have unusually large particles?”, “Summarise mean Feret per tissue”.
               </p>
             ) : (
               <ul className="flex flex-col gap-2">

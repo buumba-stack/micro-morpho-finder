@@ -2,8 +2,17 @@ import { useRef, useState } from "react";
 import { TISSUE_OPTIONS, type AnalysisSettings, type RunProgress } from "@/lib/study-types";
 
 interface Props {
+  /** settings currently being edited: the selected image's own, or the defaults */
   settings: AnalysisSettings;
   onChange: (patch: Partial<AnalysisSettings>) => void;
+  scope: "image" | "defaults";
+  selectedName?: string | undefined;
+  selectedAnalyzed?: boolean | undefined;
+  selectedStale?: boolean | undefined;
+  onReanalyzeSelected: () => void;
+  onApplyDefaultsToSelected: () => void;
+  onCopySelectedToDefaults: () => void;
+  defaults: AnalysisSettings;
   onAddFiles: (files: File[], tissue: string) => void;
   onRun: () => void;
   onClear: () => void;
@@ -15,6 +24,14 @@ interface Props {
 export function SetupPanel({
   settings,
   onChange,
+  scope,
+  selectedName,
+  selectedAnalyzed,
+  selectedStale,
+  onReanalyzeSelected,
+  onApplyDefaultsToSelected,
+  onCopySelectedToDefaults,
+  defaults,
   onAddFiles,
   onRun,
   onClear,
@@ -27,9 +44,26 @@ export function SetupPanel({
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const effectiveTissue = tissue === "__custom" ? customTissue.trim() || "Unassigned" : tissue;
+  const perImage = scope === "image";
 
   return (
     <div className="panel flex flex-col gap-4 p-3">
+      <section
+        className={`flex flex-col gap-1 rounded-md border px-2.5 py-2 ${
+          perImage ? "border-primary/50 bg-primary/5" : "border-border bg-secondary/40"
+        }`}
+      >
+        <span className="label-caps">{perImage ? "Editing image" : "Editing defaults"}</span>
+        <span className="truncate font-mono text-[11px] text-foreground">
+          {perImage ? selectedName : "no image selected"}
+        </span>
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          {perImage
+            ? "These scale, threshold and filter values belong to this image only. Other images keep their own settings and results."
+            : "Values below become the starting settings for images you add next."}
+        </p>
+      </section>
+
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-semibold">1 · Set scale</h3>
         <label className="flex flex-col gap-1">
@@ -44,8 +78,7 @@ export function SetupPanel({
           />
         </label>
         <p className="text-[11px] leading-snug text-muted-foreground">
-          Equivalent to ImageJ <span className="font-mono">Analyze &gt; Set Scale</span>. Applied
-          globally to every image in the batch.
+          Equivalent to ImageJ <span className="font-mono">Analyze &gt; Set Scale</span>.
         </p>
       </section>
 
@@ -63,8 +96,8 @@ export function SetupPanel({
           />
         </label>
         <p className="text-[11px] leading-snug text-muted-foreground">
-          Grayscale ≥ threshold is counted as fluorescent signal. Use the Binary view to confirm the
-          value before running the batch.
+          Grayscale ≥ threshold counts as fluorescent signal. The Binary view previews this value
+          for the selected image; results only change when you re-analyze it.
         </p>
       </section>
 
@@ -131,8 +164,62 @@ export function SetupPanel({
         </label>
       </section>
 
+      {perImage && (
+        <section className="flex flex-col gap-2 border-t border-border pt-3">
+          <h3 className="text-sm font-semibold">4 · Apply to this image</h3>
+          <button
+            className={selectedStale ? "btn-primary" : "btn-ghost"}
+            disabled={progress.running}
+            onClick={onReanalyzeSelected}
+          >
+            {progress.running ? "Working…" : "Re-analyze selected image"}
+          </button>
+          {selectedStale && (
+            <p className="font-mono text-[11px] text-accent">
+              Settings edited — re-analyze to apply them to this image.
+            </p>
+          )}
+          {selectedAnalyzed === false && (
+            <p className="font-mono text-[11px] text-muted-foreground">
+              This image has not been analyzed yet.
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button
+              className="btn-ghost flex-1 px-2 py-1"
+              disabled={progress.running}
+              onClick={onApplyDefaultsToSelected}
+            >
+              Load defaults
+            </button>
+            <button
+              className="btn-ghost flex-1 px-2 py-1"
+              disabled={progress.running}
+              onClick={onCopySelectedToDefaults}
+            >
+              Save as defaults
+            </button>
+          </div>
+          <p className="text-[11px] leading-snug text-muted-foreground">
+            Defaults ({defaults.umPerPx} µm/px · threshold {defaults.threshold}) apply only to
+            images you add from now on.
+          </p>
+        </section>
+      )}
+
+      {!perImage && (
+        <section className="flex flex-col gap-2 border-t border-border pt-3">
+          <h3 className="text-sm font-semibold">4 · Per-image analysis</h3>
+          <p className="text-[11px] leading-snug text-muted-foreground">
+            Select an image in the list to edit and re-analyze that image on its own. The values
+            above are the defaults ({defaults.umPerPx} µm/px · threshold {defaults.threshold}) used
+            for images you add next.
+          </p>
+        </section>
+      )}
+
       <section className="flex flex-col gap-2 border-t border-border pt-3">
-        <h3 className="text-sm font-semibold">4 · Add micrographs</h3>
+        <h3 className="text-sm font-semibold">5 · Add micrographs</h3>
         <label className="flex flex-col gap-1">
           <span className="label-caps">Tissue for this batch</span>
           <select
@@ -176,14 +263,14 @@ export function SetupPanel({
       <section className="flex flex-col gap-2 border-t border-border pt-3">
         <button
           className="btn-primary"
-          disabled={progress.running || imageCount === 0}
+          disabled={progress.running || pendingCount === 0}
           onClick={onRun}
         >
           {progress.running
             ? `Analyzing ${progress.done}/${progress.total}…`
-            : pendingCount > 0 && pendingCount < imageCount
+            : pendingCount > 0
               ? `Analyze ${pendingCount} new image${pendingCount === 1 ? "" : "s"}`
-              : `Analyze ${imageCount} image${imageCount === 1 ? "" : "s"}`}
+              : "All images analyzed"}
         </button>
         {progress.running && (
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
@@ -197,8 +284,8 @@ export function SetupPanel({
           Clear all images
         </button>
         <p className="text-[11px] leading-snug text-muted-foreground">
-          Re-running re-measures every image with the current scale, threshold and filters, and
-          resets manual rejections.
+          Batch analysis only touches images that have never been analyzed. Analyzed images keep
+          their measurements, rejections and AI review until you re-analyze them individually.
         </p>
       </section>
     </div>

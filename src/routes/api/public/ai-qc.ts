@@ -20,6 +20,9 @@ const ParticleSchema = z.object({
   morphology: z.string(),
   touchesBorder: z.boolean(),
   crop: z.string().optional(),
+  blankSimilarity: z.number().optional(),
+  blankReference: z.string().optional(),
+  blankCrop: z.string().optional(),
 });
 
 const BodySchema = z.object({
@@ -48,6 +51,11 @@ Exclusion rules — flag a particle for exclusion when the crop shows:
 - the object touches the image border
 - fluorescence inconsistent with a plastic positive control (dim, diffuse, tissue autofluorescence,
   debris, or non-particulate haze)
+
+Some particles include a comparison with a CONFIRMED procedural-blank artefact (similarity score and
+a crop of that artefact). A close visual and morphological match is evidence for exclusion as a blank
+artefact; a weak or ambiguous match is NOT. Never exclude on the score alone — if the sample crop and
+the blank crop do not clearly look like the same kind of object, answer "uncertain".
 
 Return "keep" only when the measurement-based morphology is consistent with what the crop shows and
 no exclusion rule applies. Use "uncertain" when the crop is not clear enough to decide. Keep notes
@@ -116,7 +124,7 @@ export const Route = createFileRoute("/api/public/ai-qc")({
               "Particles (measurements in µm / µm²):",
               ...body.particles.map(
                 (p) =>
-                  `#${p.id} area=${p.area.toFixed(2)} perim=${p.perimeter.toFixed(2)} w=${p.width.toFixed(2)} h=${p.height.toFixed(2)} feret=${p.feret.toFixed(2)} minFeret=${p.minFeret.toFixed(2)} AR=${p.aspectRatio.toFixed(3)} circ=${p.circularity.toFixed(3)} auto=${p.morphology} border=${p.touchesBorder}`,
+                  `#${p.id} area=${p.area.toFixed(2)} perim=${p.perimeter.toFixed(2)} w=${p.width.toFixed(2)} h=${p.height.toFixed(2)} feret=${p.feret.toFixed(2)} minFeret=${p.minFeret.toFixed(2)} AR=${p.aspectRatio.toFixed(3)} circ=${p.circularity.toFixed(3)} auto=${p.morphology} border=${p.touchesBorder}${p.blankSimilarity !== undefined ? ` blankMatch=${p.blankSimilarity.toFixed(2)}${p.blankReference ? `/${p.blankReference}` : ""}` : ""}`,
               ),
               "",
               "Review every particle listed above and return one entry per id.",
@@ -128,6 +136,13 @@ export const Route = createFileRoute("/api/public/ai-qc")({
           if (!p.crop) continue;
           content.push({ type: "input_text", text: `Crop of particle #${p.id}:` });
           content.push({ type: "input_image", image_url: p.crop, detail: "auto" });
+          if (p.blankCrop) {
+            content.push({
+              type: "input_text",
+              text: `Confirmed procedural-blank artefact matched to particle #${p.id} (similarity ${(p.blankSimilarity ?? 0).toFixed(2)}):`,
+            });
+            content.push({ type: "input_image", image_url: p.blankCrop, detail: "auto" });
+          }
         }
 
         try {
