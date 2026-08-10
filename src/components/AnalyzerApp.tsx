@@ -542,6 +542,10 @@ export function AnalyzerApp() {
             selectedName={current?.name}
             selectedAnalyzed={current?.status === "done"}
             selectedStale={selectedStale}
+            draftPending={Boolean(current?.draft)}
+            onCommitDraft={() => current && commitDraft(current.id)}
+            onDiscardDraft={() => current && discardDraft(current.id)}
+
             onReanalyzeSelected={reanalyzeSelected}
             onApplyDefaultsToSelected={applyDefaultsToSelected}
             onCopySelectedToDefaults={copySelectedToDefaults}
