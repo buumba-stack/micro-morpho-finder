@@ -71,6 +71,7 @@ export function ImageViewer({ entry, threshold, selectedId, onSelect, onToggleRe
 
     if (!showOutlines) return;
     const rejectedColor = cssColor("--rejected");
+    const blankColor = cssColor("--accent") || "#e0a33c";
     const lw = Math.max(1, Math.round(Math.max(canvas.width, canvas.height) / 700));
     ctx.lineJoin = "round";
     ctx.font = `${Math.max(11, Math.round(canvas.height / 60))}px "JetBrains Mono", monospace`;
@@ -88,6 +89,27 @@ export function ImageViewer({ entry, threshold, selectedId, onSelect, onToggleRe
       for (let i = 2; i < o.length; i += 2) ctx.lineTo(o[i]! + 0.5, o[i + 1]! + 0.5);
       ctx.closePath();
       ctx.stroke();
+
+      // procedural-blank match marker: dashed halo + "B", advisory only
+      const match = blankMatches?.[p.id];
+      if (match) {
+        const muted = keptIds.has(p.id) || p.rejected;
+        ctx.setLineDash([lw * 2, lw * 2]);
+        ctx.strokeStyle = blankColor;
+        ctx.globalAlpha = muted ? 0.4 : 0.95;
+        ctx.lineWidth = match.highConfidence && !muted ? lw * 2.5 : lw * 1.5;
+        const pad = Math.max(3, lw * 4);
+        ctx.strokeRect(p.bxPx - pad, p.byPx - pad, p.bwPx + pad * 2, p.bhPx + pad * 2);
+        ctx.setLineDash([]);
+        ctx.fillStyle = blankColor;
+        ctx.fillText(
+          `B${Math.round(match.similarity * 100)}`,
+          p.bxPx + p.bwPx + pad,
+          Math.max(12, p.byPx + p.bhPx + pad),
+        );
+        ctx.globalAlpha = 1;
+      }
+
       if (p.id === selectedId) {
         ctx.setLineDash([]);
         ctx.strokeStyle = color;
@@ -102,7 +124,19 @@ export function ImageViewer({ entry, threshold, selectedId, onSelect, onToggleRe
       }
       ctx.restore();
     }
-  }, [source, entry, mode, threshold, showOutlines, showLabels, particles, selectedId]);
+  }, [
+    source,
+    entry,
+    mode,
+    threshold,
+    showOutlines,
+    showLabels,
+    particles,
+    selectedId,
+    blankMatches,
+    keptIds,
+  ]);
+
 
   const hitTest = (x: number, y: number): Particle | null => {
     let best: Particle | null = null;
