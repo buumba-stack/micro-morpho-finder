@@ -183,11 +183,28 @@ export function SetupPanel({
           >
             {progress.running ? "Working…" : "Re-analyze selected image"}
           </button>
+          {draftPending && (
+            <div className="flex flex-col gap-1 rounded border border-primary/50 bg-primary/10 px-2 py-1.5">
+              <p className="font-mono text-[11px] text-primary">
+                Re-analysed. The viewer and table show the new result — click Update to write it into
+                the batch list.
+              </p>
+              <div className="flex gap-2">
+                <button className="btn-primary flex-1 px-2 py-1" onClick={onCommitDraft}>
+                  Update batch with this image
+                </button>
+                <button className="btn-ghost px-2 py-1" onClick={onDiscardDraft}>
+                  Discard
+                </button>
+              </div>
+            </div>
+          )}
           {selectedStale && (
             <p className="font-mono text-[11px] text-accent">
               Settings edited — re-analyze to apply them to this image.
             </p>
           )}
+
           {selectedAnalyzed === false && (
             <p className="font-mono text-[11px] text-muted-foreground">
               This image has not been analyzed yet.
