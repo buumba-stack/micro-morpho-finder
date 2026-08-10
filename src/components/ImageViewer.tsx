@@ -33,6 +33,9 @@ export function ImageViewer({ entry, threshold, selectedId, onSelect, onToggleRe
   const [showOutlines, setShowOutlines] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [zoom, setZoom] = useState(1);
+  const blankMatches = entry?.blankMatches;
+  const keptIds = useMemo(() => new Set(entry?.blankKeep ?? []), [entry?.blankKeep]);
+
 
   useEffect(() => {
     let cancelled = false;
