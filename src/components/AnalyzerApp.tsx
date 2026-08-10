@@ -81,10 +81,6 @@ export function AnalyzerApp() {
     [selectedImage],
   );
 
-  const patchDefaults = useCallback((patch: Partial<AnalysisSettings>) => {
-    setDefaults((s) => ({ ...s, ...patch }));
-  }, []);
-
   const addFiles = useCallback(
     (files: File[], tissue: string) => {
       setEntries((prev) => [
