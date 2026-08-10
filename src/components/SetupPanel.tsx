@@ -211,19 +211,15 @@ export function SetupPanel({
 
       {!perImage && (
         <section className="flex flex-col gap-2 border-t border-border pt-3">
-          <h3 className="text-sm font-semibold">4 · Defaults</h3>
+          <h3 className="text-sm font-semibold">4 · Per-image analysis</h3>
           <p className="text-[11px] leading-snug text-muted-foreground">
-            Select an image in the list to edit and re-analyze that image on its own. Use{" "}
-            <button
-              className="underline"
-              onClick={() => onChangeDefaults({ threshold: defaults.threshold })}
-            >
-              these values
-            </button>{" "}
-            as the starting point for new uploads.
+            Select an image in the list to edit and re-analyze that image on its own. The values above
+            are the defaults ({defaults.umPerPx} µm/px · threshold {defaults.threshold}) used for
+            images you add next.
           </p>
         </section>
       )}
+
 
       <section className="flex flex-col gap-2 border-t border-border pt-3">
         <h3 className="text-sm font-semibold">5 · Add micrographs</h3>
