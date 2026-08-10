@@ -307,7 +307,8 @@ export function AnalyzerApp() {
       if (!selectedImage) return;
       setEntries((prev) =>
         prev.map((e) =>
-          e.id === selectedImage && e.analysis
+          e.id === selectedImage && e.analysis && !e.draft
+
             ? {
                 ...e,
                 analysis: {
