@@ -48,6 +48,9 @@ export function AiPanel({
   const particles = entry?.analysis?.particles ?? [];
   const current = entry ? (reviews[entry.id] ?? []) : [];
   const excludeIds = current.filter((r) => r.verdict === "exclude").map((r) => r.id);
+  const batchReady = entries.filter((e) => e.analysis && !e.draft);
+  const pendingUpdates = entries.filter((e) => e.draft).length;
+
 
   const digest = useMemo(() => datasetDigest(entries, settings), [entries, settings]);
 
