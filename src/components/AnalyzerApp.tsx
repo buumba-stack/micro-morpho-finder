@@ -7,6 +7,7 @@ import {
 } from "@/lib/particle-analysis";
 import { isEntryStale, type ImageEntry, type RunProgress } from "@/lib/study-types";
 import { computeBlankMatches } from "@/lib/blank-matching";
+import { deleteParticles } from "@/lib/particle-edit";
 import { SetupPanel } from "@/components/SetupPanel";
 import { ImageList } from "@/components/ImageList";
 import { ImageViewer } from "@/components/ImageViewer";
@@ -638,6 +639,7 @@ export function AnalyzerApp() {
             selectedId={selectedParticle}
             onSelect={setSelectedParticle}
             onToggleReject={toggleReject}
+            onDeleteParticle={deleteParticle}
           />
           <BlankComparePanel
             entry={displayEntry}
@@ -656,7 +658,9 @@ export function AnalyzerApp() {
             reviews={aiReviews}
             onReviews={setReviews}
             onSelectParticle={setSelectedParticle}
+            onSelectImage={setSelectedImage}
             onApplyExclusions={applyExclusions}
+            onAcceptReviews={acceptAiReviews}
           />
         </div>
 
@@ -676,6 +680,7 @@ export function AnalyzerApp() {
               selectedId={selectedParticle}
               onSelect={setSelectedParticle}
               onToggleReject={toggleReject}
+              onDelete={deleteParticle}
             />
           </div>
         </div>
