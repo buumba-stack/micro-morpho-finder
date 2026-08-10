@@ -9,6 +9,10 @@ interface Props {
   selectedName?: string | undefined;
   selectedAnalyzed?: boolean | undefined;
   selectedStale?: boolean | undefined;
+  /** a re-analysis of the selected image is waiting to be written into the batch */
+  draftPending?: boolean | undefined;
+  onCommitDraft: () => void;
+  onDiscardDraft: () => void;
   onReanalyzeSelected: () => void;
   onApplyDefaultsToSelected: () => void;
   onCopySelectedToDefaults: () => void;
@@ -20,6 +24,7 @@ interface Props {
   imageCount: number;
   pendingCount: number;
 }
+
 
 export function SetupPanel({
   settings,
