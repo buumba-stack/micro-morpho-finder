@@ -591,9 +591,10 @@ export function AnalyzerApp() {
           />
           <div className="min-h-[45vh] flex flex-col">
             <ParticleTable
-              particles={current?.analysis?.particles ?? []}
-              blankMatches={current?.blankMatches}
-              blankKeep={current?.blankKeep}
+              particles={displayEntry?.analysis?.particles ?? []}
+              blankMatches={displayEntry?.blankMatches}
+              blankKeep={displayEntry?.blankKeep}
+
               selectedId={selectedParticle}
               onSelect={setSelectedParticle}
               onToggleReject={toggleReject}
