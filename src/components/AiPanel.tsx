@@ -231,6 +231,22 @@ export function AiPanel({
               Reject {excludeIds.length} flagged
             </button>
           </div>
+          <button
+            className="btn-primary"
+            disabled={busy || !batchReady.length || pendingUpdates > 0}
+            onClick={runQcAll}
+          >
+            {busy
+              ? "Reviewing…"
+              : `Final AI review of all ${batchReady.length} analysed image${batchReady.length === 1 ? "" : "s"}`}
+          </button>
+          {pendingUpdates > 0 && (
+            <p className="font-mono text-[11px] text-accent">
+              {pendingUpdates} re-analysed image{pendingUpdates === 1 ? "" : "s"} still need “Update
+              batch” before the final review.
+            </p>
+          )}
+
           {status && <p className="font-mono text-[11px] text-muted-foreground">{status}</p>}
 
           <div className="min-h-0 flex-1 overflow-auto">
