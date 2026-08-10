@@ -492,6 +492,41 @@ export function AnalyzerApp() {
         </p>
       )}
 
+      {draftCount > 0 && !progress.running && view === "analysis" && (
+        <div className="flex flex-col gap-2 rounded-md border border-primary/50 bg-primary/10 px-3 py-2 text-xs">
+          <p className="font-mono text-primary">
+            {draftCount} re-analysed image{draftCount === 1 ? "" : "s"} waiting to be written into
+            the batch list. The batch data below still shows the previous result until you update.
+          </p>
+          <ul className="flex flex-col gap-1 font-mono text-[11px] text-muted-foreground">
+            {draftEntries.map((e) => (
+              <li key={e.id} className="flex flex-wrap items-center gap-2">
+                <button className="underline-offset-2 hover:underline" onClick={() => setSelectedImage(e.id)}>
+                  {e.name}
+                </button>
+                <span>
+                  thr {e.runSettings?.threshold ?? "—"} → {e.draft!.runSettings.threshold} ·{" "}
+                  {e.analysis?.particles.filter((p) => !p.rejected).length ?? 0} →{" "}
+                  {e.draft!.analysis.particles.filter((p) => !p.rejected).length} particles
+                </span>
+                <button className="btn-primary px-2 py-0.5" onClick={() => commitDraft(e.id)}>
+                  Update batch
+                </button>
+                <button className="btn-ghost px-2 py-0.5" onClick={() => discardDraft(e.id)}>
+                  Discard
+                </button>
+              </li>
+            ))}
+          </ul>
+          {draftCount > 1 && (
+            <button className="btn-primary self-start px-2 py-0.5" onClick={commitAllDrafts}>
+              Update batch with all {draftCount} re-analysed images
+            </button>
+          )}
+        </div>
+      )}
+
+
       {view === "blanks" && <BlankLibraryPanel settings={defaults} api={blanks} />}
 
       <div
