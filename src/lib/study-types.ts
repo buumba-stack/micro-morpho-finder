@@ -50,10 +50,12 @@ export interface RunProgress {
   total: number;
 }
 
-/** True when this image's settings differ from the ones its result was computed with. */
+/** True when this image's settings differ from the ones its latest result used. */
 export function isEntryStale(entry: ImageEntry): boolean {
-  if (!entry.analysis || !entry.runSettings) return false;
-  return JSON.stringify(entry.settings) !== JSON.stringify(entry.runSettings);
+  const applied = entry.draft?.runSettings ?? entry.runSettings;
+  if (!entry.analysis || !applied) return false;
+  return JSON.stringify(entry.settings) !== JSON.stringify(applied);
 }
+
 
 export type { AnalysisSettings };
