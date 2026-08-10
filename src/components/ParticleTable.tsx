@@ -15,6 +15,8 @@ interface Props {
   selectedId: number | null;
   onSelect: (id: number) => void;
   onToggleReject: (id: number) => void;
+  /** removes the particle and renumbers the remaining ones */
+  onDelete?: ((id: number) => void) | undefined;
 }
 
 const n = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : "—");
@@ -26,6 +28,7 @@ export function ParticleTable({
   selectedId,
   onSelect,
   onToggleReject,
+  onDelete,
 }: Props) {
   const kept = new Set(blankKeep ?? []);
   const flaggedCount = Object.keys(blankMatches ?? {}).length;
@@ -54,6 +57,7 @@ export function ParticleTable({
                 "Class",
                 "Blank",
                 "Use",
+                "Del",
               ].map((h) => (
                 <th
                   key={h}
@@ -111,12 +115,26 @@ export function ParticleTable({
                       className="accent-primary"
                     />
                   </td>
+                  <td className="px-2 py-1">
+                    {onDelete && (
+                      <button
+                        title="Delete this object and renumber the rest"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(p.id);
+                        }}
+                        className="rounded px-1 text-muted-foreground hover:bg-fibre/15 hover:text-fibre"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </td>
                 </tr>
               );
             })}
             {particles.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-3 py-6 text-center text-muted-foreground">
+                <td colSpan={12} className="px-3 py-6 text-center text-muted-foreground">
                   No particles for this image.
                 </td>
               </tr>

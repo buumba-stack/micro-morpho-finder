@@ -7,6 +7,7 @@ import {
 } from "@/lib/particle-analysis";
 import { isEntryStale, type ImageEntry, type RunProgress } from "@/lib/study-types";
 import { computeBlankMatches } from "@/lib/blank-matching";
+import { deleteParticles } from "@/lib/particle-edit";
 import { SetupPanel } from "@/components/SetupPanel";
 import { ImageList } from "@/components/ImageList";
 import { ImageViewer } from "@/components/ImageViewer";
@@ -18,7 +19,6 @@ import { BlankLibraryPanel } from "@/components/BlankLibraryPanel";
 import { useBlankLibrary } from "@/hooks/useBlankLibrary";
 import { countConfirmed } from "@/lib/blank-library";
 import { clearSession, loadSession, saveSession } from "@/lib/session-store";
-
 
 import type { AiReview } from "@/lib/ai-client";
 
@@ -35,7 +35,6 @@ export function AnalyzerApp() {
   const [sessionReady, setSessionReady] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const blanks = useBlankLibrary();
-
 
   const setReviews = useCallback((imageId: string, list: AiReview[]) => {
     setAiReviews((prev) => ({ ...prev, [imageId]: list }));
@@ -59,6 +58,32 @@ export function AnalyzerApp() {
       ),
     );
   }, []);
+
+  /**
+   * Accepts the AI review across the whole batch: every "exclude" verdict is
+   * written into the batch-processed results of its own image at once.
+   */
+  const acceptAiReviews = useCallback(() => {
+    setEntries((prev) =>
+      prev.map((e) => {
+        const list = aiReviews[e.id];
+        if (!list || !e.analysis) return e;
+        const flagged = new Set(list.filter((r) => r.verdict === "exclude").map((r) => r.id));
+        if (!flagged.size) return e;
+        return {
+          ...e,
+          analysis: {
+            ...e.analysis,
+            particles: e.analysis.particles.map((p) =>
+              flagged.has(p.id) ? { ...p, rejected: true } : p,
+            ),
+          },
+          revision: (e.revision ?? 0) + 1,
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    );
+  }, [aiReviews]);
 
   const blankConfirmed = useMemo(() => countConfirmed(blanks.library), [blanks.library]);
 
@@ -88,7 +113,6 @@ export function AnalyzerApp() {
       blankKeep: [],
     };
   }, [current]);
-
 
   /** Edits the selected image's settings; with no selection, edits the defaults. */
   const patchSettings = useCallback(
@@ -267,7 +291,6 @@ export function AnalyzerApp() {
     );
   }, []);
 
-
   const applyDefaultsToSelected = useCallback(() => {
     if (!selectedImage) return;
     setEntries((prev) =>
@@ -285,7 +308,6 @@ export function AnalyzerApp() {
       setEntries((prev) =>
         prev.map((e) =>
           e.id === selectedImage && e.analysis && !e.draft
-
             ? {
                 ...e,
                 analysis: {
@@ -308,7 +330,6 @@ export function AnalyzerApp() {
       setEntries((prev) =>
         prev.map((e) =>
           e.id === selectedImage && e.analysis && !e.draft
-
             ? {
                 ...e,
                 analysis: {
@@ -321,6 +342,49 @@ export function AnalyzerApp() {
             : e,
         ),
       );
+    },
+    [selectedImage],
+  );
+
+  /**
+   * Deletes an object from the image under review. The remaining particles are
+   * renumbered from 1 and the edit is parked as a pending update, so the batch
+   * data only changes when the user accepts it with "Update batch".
+   */
+  const deleteParticle = useCallback(
+    (particleId: number) => {
+      if (!selectedImage) return;
+      setEntries((prev) =>
+        prev.map((e) => {
+          if (e.id !== selectedImage) return e;
+          if (e.draft) {
+            const r = deleteParticles(e.draft.analysis, e.draft.blankMatches, [], [particleId]);
+            return {
+              ...e,
+              draft: { ...e.draft, analysis: r.analysis, blankMatches: r.blankMatches },
+            };
+          }
+          if (!e.analysis) return e;
+          const r = deleteParticles(e.analysis, e.blankMatches, e.blankKeep, [particleId]);
+          return {
+            ...e,
+            draft: {
+              analysis: r.analysis,
+              runSettings: { ...(e.runSettings ?? e.settings) },
+              analysisId: e.analysisId ?? `${Date.now()}`,
+              blankMatches: r.blankMatches,
+              createdAt: new Date().toISOString(),
+            },
+          };
+        }),
+      );
+      setSelectedParticle(null);
+      setAiReviews((prev) => {
+        if (!(selectedImage in prev)) return prev;
+        const next = { ...prev };
+        delete next[selectedImage];
+        return next;
+      });
     },
     [selectedImage],
   );
@@ -413,7 +477,6 @@ export function AnalyzerApp() {
     return () => clearTimeout(t);
   }, [entries, defaults, sessionReady, progress.running]);
 
-
   useEffect(() => {
     if (!selectedImage && entries.length) setSelectedImage(entries[0]!.id);
     if (selectedImage && !entries.some((e) => e.id === selectedImage)) {
@@ -458,7 +521,6 @@ export function AnalyzerApp() {
             </dd>
           </div>
         </dl>
-
       </header>
 
       <nav className="flex gap-1 border-b border-border">
@@ -503,7 +565,10 @@ export function AnalyzerApp() {
           <ul className="flex flex-col gap-1 font-mono text-[11px] text-muted-foreground">
             {draftEntries.map((e) => (
               <li key={e.id} className="flex flex-wrap items-center gap-2">
-                <button className="underline-offset-2 hover:underline" onClick={() => setSelectedImage(e.id)}>
+                <button
+                  className="underline-offset-2 hover:underline"
+                  onClick={() => setSelectedImage(e.id)}
+                >
                   {e.name}
                 </button>
                 <span>
@@ -527,7 +592,6 @@ export function AnalyzerApp() {
           )}
         </div>
       )}
-
 
       {view === "blanks" && <BlankLibraryPanel settings={defaults} api={blanks} />}
 
@@ -566,6 +630,7 @@ export function AnalyzerApp() {
             selectedId={selectedParticle}
             onSelect={setSelectedParticle}
             onToggleReject={toggleReject}
+            onDeleteParticle={deleteParticle}
           />
           <BlankComparePanel
             entry={displayEntry}
@@ -584,7 +649,9 @@ export function AnalyzerApp() {
             reviews={aiReviews}
             onReviews={setReviews}
             onSelectParticle={setSelectedParticle}
+            onSelectImage={setSelectedImage}
             onApplyExclusions={applyExclusions}
+            onAcceptReviews={acceptAiReviews}
           />
         </div>
 
@@ -604,6 +671,7 @@ export function AnalyzerApp() {
               selectedId={selectedParticle}
               onSelect={setSelectedParticle}
               onToggleReject={toggleReject}
+              onDelete={deleteParticle}
             />
           </div>
         </div>
