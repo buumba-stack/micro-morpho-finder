@@ -41,9 +41,23 @@ export function ImageList({ entries, selectedId, onSelect, onRemove }: Props) {
                     {e.tissue}
                     {e.status === "done" ? ` · ${accepted} particles` : ""}
                     {e.status === "done" ? ` · thr ${e.runSettings?.threshold ?? "—"}` : ""}
+                    {e.status === "done" && e.runSettings
+                      ? ` · ${e.runSettings.umPerPx} µm/px`
+                      : ""}
+                    {e.revision ? ` · rev ${e.revision}` : ""}
                     {e.status === "error" ? " · failed" : ""}
                   </span>
+                  {e.updatedAt && (
+                    <span className="label-caps block text-primary">
+                      updated {new Date(e.updatedAt).toLocaleTimeString()}
+                    </span>
+                  )}
                 </span>
+                {e.draft && (
+                  <span className="shrink-0 rounded bg-primary/20 px-1 font-mono text-[10px] text-primary">
+                    update pending
+                  </span>
+                )}
                 {blankFlags > 0 && (
                   <span className="shrink-0 rounded border border-accent/50 px-1 font-mono text-[10px] text-accent">
                     B{blankFlags}
@@ -54,6 +68,7 @@ export function ImageList({ entries, selectedId, onSelect, onRemove }: Props) {
                     edited
                   </span>
                 )}
+
                 <span
                   role="button"
                   tabIndex={-1}

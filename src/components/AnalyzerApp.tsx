@@ -72,6 +72,23 @@ export function AnalyzerApp() {
   const selectedStale = current ? isEntryStale(current) : false;
   const pendingCount = entries.filter((e) => e.status !== "done" && e.status !== "running").length;
   const staleCount = entries.filter(isEntryStale).length;
+  const draftEntries = entries.filter((e) => e.draft);
+  const draftCount = draftEntries.length;
+
+  /** What the viewer/table show: the pending re-analysis if there is one. */
+  const displayEntry = useMemo(() => {
+    if (!current) return undefined;
+    if (!current.draft) return current;
+    return {
+      ...current,
+      analysis: current.draft.analysis,
+      runSettings: current.draft.runSettings,
+      analysisId: current.draft.analysisId,
+      blankMatches: current.draft.blankMatches,
+      blankKeep: [],
+    };
+  }, [current]);
+
 
   /** Edits the selected image's settings; with no selection, edits the defaults. */
   const patchSettings = useCallback(
@@ -106,9 +123,13 @@ export function AnalyzerApp() {
     [defaults],
   );
 
-  /** Analyzes exactly one image with its own settings; never touches the others. */
+  /**
+   * Analyzes exactly one image with its own settings; never touches the others.
+   * `mode: "draft"` keeps the existing batch record and parks the new result as
+   * a pending update the user confirms with "Update batch".
+   */
   const analyzeEntry = useCallback(
-    async (entry: ImageEntry) => {
+    async (entry: ImageEntry, mode: "commit" | "draft" = "commit") => {
       setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, status: "running" } : e)));
       const settings = entry.settings;
       try {
@@ -120,19 +141,34 @@ export function AnalyzerApp() {
           settings,
           blanks.library,
         );
+        const analysisId = `${Date.now()}`;
         setEntries((prev) =>
           prev.map((e) =>
             e.id === entry.id
-              ? {
-                  ...e,
-                  status: "done",
-                  analysis,
-                  runSettings: { ...settings },
-                  analysisId: `${Date.now()}`,
-                  blankMatches,
-                  blankKeep: [],
-                  error: undefined,
-                }
+              ? mode === "draft"
+                ? {
+                    ...e,
+                    status: "done",
+                    error: undefined,
+                    draft: {
+                      analysis,
+                      runSettings: { ...settings },
+                      analysisId,
+                      blankMatches,
+                      createdAt: new Date().toISOString(),
+                    },
+                  }
+                : {
+                    ...e,
+                    status: "done",
+                    analysis,
+                    runSettings: { ...settings },
+                    analysisId,
+                    blankMatches,
+                    blankKeep: [],
+                    draft: undefined,
+                    error: undefined,
+                  }
               : e,
           ),
         );
@@ -149,22 +185,24 @@ export function AnalyzerApp() {
           ),
         );
       }
-      setAiReviews((prev) => {
-        if (!(entry.id in prev)) return prev;
-        const next = { ...prev };
-        delete next[entry.id];
-        return next;
-      });
+      if (mode === "commit") {
+        setAiReviews((prev) => {
+          if (!(entry.id in prev)) return prev;
+          const next = { ...prev };
+          delete next[entry.id];
+          return next;
+        });
+      }
     },
     [blanks.library],
   );
 
   const runList = useCallback(
-    async (list: ImageEntry[]) => {
+    async (list: ImageEntry[], mode: "commit" | "draft" = "commit") => {
       if (!list.length) return;
       setProgress({ running: true, done: 0, total: list.length });
       for (let i = 0; i < list.length; i++) {
-        await analyzeEntry(list[i]!);
+        await analyzeEntry(list[i]!, mode);
         setProgress({ running: true, done: i + 1, total: list.length });
         await new Promise((r) => setTimeout(r, 0));
       }
@@ -179,14 +217,56 @@ export function AnalyzerApp() {
     [entries, runList],
   );
 
+  /** Re-analysis of an already-analysed image produces a pending update. */
   const reanalyzeSelected = useCallback(() => {
-    if (current) void runList([current]);
+    if (!current) return;
+    void runList([current], current.analysis ? "draft" : "commit");
   }, [current, runList]);
 
   const reanalyzeStale = useCallback(
-    () => runList(entries.filter(isEntryStale)),
+    () => runList(entries.filter(isEntryStale), "draft"),
     [entries, runList],
   );
+
+  /** Writes a pending re-analysis into the original batch record, in place. */
+  const commitDraft = useCallback((id: string) => {
+    setEntries((prev) =>
+      prev.map((e) =>
+        e.id === id && e.draft
+          ? {
+              ...e,
+              analysis: e.draft.analysis,
+              runSettings: e.draft.runSettings,
+              analysisId: e.draft.analysisId,
+              blankMatches: e.draft.blankMatches,
+              blankKeep: [],
+              revision: (e.revision ?? 0) + 1,
+              updatedAt: new Date().toISOString(),
+              draft: undefined,
+            }
+          : e,
+      ),
+    );
+    setAiReviews((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }, []);
+
+  const commitAllDrafts = useCallback(() => {
+    entries.filter((e) => e.draft).forEach((e) => commitDraft(e.id));
+  }, [commitDraft, entries]);
+
+  const discardDraft = useCallback((id: string) => {
+    setEntries((prev) =>
+      prev.map((e) =>
+        e.id === id && e.draft ? { ...e, draft: undefined, settings: { ...e.runSettings! } } : e,
+      ),
+    );
+  }, []);
+
 
   const applyDefaultsToSelected = useCallback(() => {
     if (!selectedImage) return;
@@ -204,7 +284,8 @@ export function AnalyzerApp() {
       if (!selectedImage) return;
       setEntries((prev) =>
         prev.map((e) =>
-          e.id === selectedImage && e.analysis
+          e.id === selectedImage && e.analysis && !e.draft
+
             ? {
                 ...e,
                 analysis: {
@@ -226,7 +307,8 @@ export function AnalyzerApp() {
       if (!selectedImage) return;
       setEntries((prev) =>
         prev.map((e) =>
-          e.id === selectedImage && e.analysis
+          e.id === selectedImage && e.analysis && !e.draft
+
             ? {
                 ...e,
                 analysis: {
@@ -412,6 +494,41 @@ export function AnalyzerApp() {
         </p>
       )}
 
+      {draftCount > 0 && !progress.running && view === "analysis" && (
+        <div className="flex flex-col gap-2 rounded-md border border-primary/50 bg-primary/10 px-3 py-2 text-xs">
+          <p className="font-mono text-primary">
+            {draftCount} re-analysed image{draftCount === 1 ? "" : "s"} waiting to be written into
+            the batch list. The batch data below still shows the previous result until you update.
+          </p>
+          <ul className="flex flex-col gap-1 font-mono text-[11px] text-muted-foreground">
+            {draftEntries.map((e) => (
+              <li key={e.id} className="flex flex-wrap items-center gap-2">
+                <button className="underline-offset-2 hover:underline" onClick={() => setSelectedImage(e.id)}>
+                  {e.name}
+                </button>
+                <span>
+                  thr {e.runSettings?.threshold ?? "—"} → {e.draft!.runSettings.threshold} ·{" "}
+                  {e.analysis?.particles.filter((p) => !p.rejected).length ?? 0} →{" "}
+                  {e.draft!.analysis.particles.filter((p) => !p.rejected).length} particles
+                </span>
+                <button className="btn-primary px-2 py-0.5" onClick={() => commitDraft(e.id)}>
+                  Update batch
+                </button>
+                <button className="btn-ghost px-2 py-0.5" onClick={() => discardDraft(e.id)}>
+                  Discard
+                </button>
+              </li>
+            ))}
+          </ul>
+          {draftCount > 1 && (
+            <button className="btn-primary self-start px-2 py-0.5" onClick={commitAllDrafts}>
+              Update batch with all {draftCount} re-analysed images
+            </button>
+          )}
+        </div>
+      )}
+
+
       {view === "blanks" && <BlankLibraryPanel settings={defaults} api={blanks} />}
 
       <div
@@ -425,6 +542,10 @@ export function AnalyzerApp() {
             selectedName={current?.name}
             selectedAnalyzed={current?.status === "done"}
             selectedStale={selectedStale}
+            draftPending={Boolean(current?.draft)}
+            onCommitDraft={() => current && commitDraft(current.id)}
+            onDiscardDraft={() => current && discardDraft(current.id)}
+
             onReanalyzeSelected={reanalyzeSelected}
             onApplyDefaultsToSelected={applyDefaultsToSelected}
             onCopySelectedToDefaults={copySelectedToDefaults}
@@ -440,20 +561,21 @@ export function AnalyzerApp() {
 
         <div className="flex min-h-[70vh] flex-col gap-4">
           <ImageViewer
-            entry={current}
+            entry={displayEntry}
             threshold={activeSettings.threshold}
             selectedId={selectedParticle}
             onSelect={setSelectedParticle}
             onToggleReject={toggleReject}
           />
           <BlankComparePanel
-            entry={current}
+            entry={displayEntry}
             selectedId={selectedParticle}
             onSelect={setSelectedParticle}
             onExclude={excludeAsBlank}
             onKeep={keepDespiteBlank}
             onExcludeAllHighConfidence={excludeAllHighConfidenceBlanks}
           />
+
           <SummaryPanel entries={entries} />
           <AiPanel
             entry={current}
@@ -475,9 +597,10 @@ export function AnalyzerApp() {
           />
           <div className="min-h-[45vh] flex flex-col">
             <ParticleTable
-              particles={current?.analysis?.particles ?? []}
-              blankMatches={current?.blankMatches}
-              blankKeep={current?.blankKeep}
+              particles={displayEntry?.analysis?.particles ?? []}
+              blankMatches={displayEntry?.blankMatches}
+              blankKeep={displayEntry?.blankKeep}
+
               selectedId={selectedParticle}
               onSelect={setSelectedParticle}
               onToggleReject={toggleReject}
