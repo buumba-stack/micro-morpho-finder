@@ -72,6 +72,23 @@ export function AnalyzerApp() {
   const selectedStale = current ? isEntryStale(current) : false;
   const pendingCount = entries.filter((e) => e.status !== "done" && e.status !== "running").length;
   const staleCount = entries.filter(isEntryStale).length;
+  const draftEntries = entries.filter((e) => e.draft);
+  const draftCount = draftEntries.length;
+
+  /** What the viewer/table show: the pending re-analysis if there is one. */
+  const displayEntry = useMemo(() => {
+    if (!current) return undefined;
+    if (!current.draft) return current;
+    return {
+      ...current,
+      analysis: current.draft.analysis,
+      runSettings: current.draft.runSettings,
+      analysisId: current.draft.analysisId,
+      blankMatches: current.draft.blankMatches,
+      blankKeep: [],
+    };
+  }, [current]);
+
 
   /** Edits the selected image's settings; with no selection, edits the defaults. */
   const patchSettings = useCallback(
