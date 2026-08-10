@@ -352,6 +352,51 @@ export function AnalyzerApp() {
     [selectedImage],
   );
 
+  /**
+   * Deletes an object from the image under review. The remaining particles are
+   * renumbered from 1 and the edit is parked as a pending update, so the batch
+   * data only changes when the user accepts it with "Update batch".
+   */
+  const deleteParticle = useCallback(
+    (particleId: number) => {
+      if (!selectedImage) return;
+      setEntries((prev) =>
+        prev.map((e) => {
+          if (e.id !== selectedImage) return e;
+          if (e.draft) {
+            const r = deleteParticles(e.draft.analysis, e.draft.blankMatches, [], [particleId]);
+            return {
+              ...e,
+              draft: { ...e.draft, analysis: r.analysis, blankMatches: r.blankMatches },
+            };
+          }
+          if (!e.analysis) return e;
+          const r = deleteParticles(e.analysis, e.blankMatches, e.blankKeep, [particleId]);
+          return {
+            ...e,
+            draft: {
+              analysis: r.analysis,
+              runSettings: { ...(e.runSettings ?? e.settings) },
+              analysisId: e.analysisId ?? `${Date.now()}`,
+              blankMatches: r.blankMatches,
+              createdAt: new Date().toISOString(),
+            },
+          };
+        }),
+      );
+      setSelectedParticle(null);
+      setAiReviews((prev) => {
+        if (!(selectedImage in prev)) return prev;
+        const next = { ...prev };
+        delete next[selectedImage];
+        return next;
+      });
+    },
+    [selectedImage],
+  );
+
+
+
   /** Marks a blank-matched particle as reviewed-and-kept (flag stays visible, muted). */
   const keepDespiteBlank = useCallback(
     (particleId: number) => {
