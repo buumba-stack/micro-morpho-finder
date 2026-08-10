@@ -378,7 +378,6 @@ export function AnalyzerApp() {
             onReanalyzeSelected={reanalyzeSelected}
             onApplyDefaultsToSelected={applyDefaultsToSelected}
             onCopySelectedToDefaults={copySelectedToDefaults}
-            onChangeDefaults={patchDefaults}
             defaults={defaults}
             onAddFiles={addFiles}
             onRun={runPending}

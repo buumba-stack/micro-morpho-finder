@@ -13,7 +13,6 @@ interface Props {
   onApplyDefaultsToSelected: () => void;
   onCopySelectedToDefaults: () => void;
   defaults: AnalysisSettings;
-  onChangeDefaults: (patch: Partial<AnalysisSettings>) => void;
   onAddFiles: (files: File[], tissue: string) => void;
   onRun: () => void;
   onClear: () => void;
@@ -33,7 +32,6 @@ export function SetupPanel({
   onApplyDefaultsToSelected,
   onCopySelectedToDefaults,
   defaults,
-  onChangeDefaults,
   onAddFiles,
   onRun,
   onClear,
