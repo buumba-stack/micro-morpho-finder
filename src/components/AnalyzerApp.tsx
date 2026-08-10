@@ -555,20 +555,21 @@ export function AnalyzerApp() {
 
         <div className="flex min-h-[70vh] flex-col gap-4">
           <ImageViewer
-            entry={current}
+            entry={displayEntry}
             threshold={activeSettings.threshold}
             selectedId={selectedParticle}
             onSelect={setSelectedParticle}
             onToggleReject={toggleReject}
           />
           <BlankComparePanel
-            entry={current}
+            entry={displayEntry}
             selectedId={selectedParticle}
             onSelect={setSelectedParticle}
             onExclude={excludeAsBlank}
             onKeep={keepDespiteBlank}
             onExcludeAllHighConfidence={excludeAllHighConfidenceBlanks}
           />
+
           <SummaryPanel entries={entries} />
           <AiPanel
             entry={current}
