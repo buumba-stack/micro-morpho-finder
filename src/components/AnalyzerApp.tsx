@@ -680,6 +680,7 @@ export function AnalyzerApp() {
       <footer className="label-caps pb-2">
         Classification: fibre AR ≤ 0.33 or ≥ 3 · sphere circ &gt; 0.90 · pellet 0.60 &lt; circ ≤
         0.90 · fragment circ ≤ 0.60 · circularity = 4π·area/perimeter² · aspect ratio = width/height
+        <div className="mt-1">MicroFluor © 2026 Buumba Hampuwo. All Rights Reserved.</div>
       </footer>
     </main>
   );

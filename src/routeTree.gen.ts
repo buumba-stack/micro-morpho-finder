@@ -10,6 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as ThirdPartyLicensesRouteImport } from './routes/third-party-licenses'
 import { Route as ApiPublicAiChatRouteImport } from './routes/api/public/ai-chat'
 import { Route as ApiPublicAiDecideRouteImport } from './routes/api/public/ai-decide'
 import { Route as ApiPublicAiQcRouteImport } from './routes/api/public/ai-qc'
@@ -17,6 +20,21 @@ import { Route as ApiPublicAiQcRouteImport } from './routes/api/public/ai-qc'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ThirdPartyLicensesRoute = ThirdPartyLicensesRouteImport.update({
+  id: '/third-party-licenses',
+  path: '/third-party-licenses',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicAiChatRoute = ApiPublicAiChatRouteImport.update({
@@ -37,12 +55,18 @@ const ApiPublicAiQcRoute = ApiPublicAiQcRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
+  '/third-party-licenses': typeof ThirdPartyLicensesRoute
   '/api/public/ai-chat': typeof ApiPublicAiChatRoute
   '/api/public/ai-decide': typeof ApiPublicAiDecideRoute
   '/api/public/ai-qc': typeof ApiPublicAiQcRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
+  '/third-party-licenses': typeof ThirdPartyLicensesRoute
   '/api/public/ai-chat': typeof ApiPublicAiChatRoute
   '/api/public/ai-decide': typeof ApiPublicAiDecideRoute
   '/api/public/ai-qc': typeof ApiPublicAiQcRoute
@@ -50,6 +74,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
+  '/third-party-licenses': typeof ThirdPartyLicensesRoute
   '/api/public/ai-chat': typeof ApiPublicAiChatRoute
   '/api/public/ai-decide': typeof ApiPublicAiDecideRoute
   '/api/public/ai-qc': typeof ApiPublicAiQcRoute
@@ -57,13 +84,28 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/api/public/ai-chat' | '/api/public/ai-decide' | '/api/public/ai-qc'
+    | '/'
+    | '/privacy'
+    | '/terms'
+    | '/third-party-licenses'
+    | '/api/public/ai-chat'
+    | '/api/public/ai-decide'
+    | '/api/public/ai-qc'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/api/public/ai-chat' | '/api/public/ai-decide' | '/api/public/ai-qc'
+    | '/'
+    | '/privacy'
+    | '/terms'
+    | '/third-party-licenses'
+    | '/api/public/ai-chat'
+    | '/api/public/ai-decide'
+    | '/api/public/ai-qc'
   id:
     | '__root__'
     | '/'
+    | '/privacy'
+    | '/terms'
+    | '/third-party-licenses'
     | '/api/public/ai-chat'
     | '/api/public/ai-decide'
     | '/api/public/ai-qc'
@@ -71,6 +113,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PrivacyRoute: typeof PrivacyRoute
+  TermsRoute: typeof TermsRoute
+  ThirdPartyLicensesRoute: typeof ThirdPartyLicensesRoute
   ApiPublicAiChatRoute: typeof ApiPublicAiChatRoute
   ApiPublicAiDecideRoute: typeof ApiPublicAiDecideRoute
   ApiPublicAiQcRoute: typeof ApiPublicAiQcRoute
@@ -83,6 +128,27 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/third-party-licenses': {
+      id: '/third-party-licenses'
+      path: '/third-party-licenses'
+      fullPath: '/third-party-licenses'
+      preLoaderRoute: typeof ThirdPartyLicensesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/ai-chat': {
@@ -111,6 +177,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PrivacyRoute: PrivacyRoute,
+  TermsRoute: TermsRoute,
+  ThirdPartyLicensesRoute: ThirdPartyLicensesRoute,
   ApiPublicAiChatRoute: ApiPublicAiChatRoute,
   ApiPublicAiDecideRoute: ApiPublicAiDecideRoute,
   ApiPublicAiQcRoute: ApiPublicAiQcRoute,
@@ -118,13 +187,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

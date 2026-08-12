@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "desktop:build": "vite build --config desktop/vite.config.ts"
+    "desktop:build": "vite build --config desktop/vite.config.ts",
+    "desktop:package": "vite build --config desktop/vite.config.ts && node scripts/package-windows.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -87,5 +88,9 @@
     "typescript-eslint": "^8.56.1",
     "vite": "^8.1.5"
   },
-  "main": "electron/main.cjs"
+  "main": "electron/main.cjs",
+  "productName": "MicroFluor",
+  "author": "Buumba Hampuwo",
+  "license": "UNLICENSED",
+  "description": "MicroFluor"
 }
