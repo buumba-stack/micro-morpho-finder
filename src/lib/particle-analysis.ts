@@ -79,19 +79,40 @@ export interface ImageAnalysis {
 
 export const MORPHOLOGIES: Morphology[] = ["fibre", "sphere", "pellet", "fragment"];
 
-/**
- * Classification criteria from the protocol.
- * fibre:    AR <= 0.33 or AR >= 3
- * sphere:   0.33 < AR < 3 and circ > 0.90
- * pellet:   0.33 < AR < 3 and 0.60 < circ <= 0.90
- * fragment: 0.33 < AR < 3 and circ <= 0.60
- */
-export function classify(aspectRatio: number, circularity: number): Morphology {
-  if (aspectRatio <= 0.33 || aspectRatio >= 3) return "fibre";
-  if (circularity > 0.9) return "sphere";
-  if (circularity > 0.6) return "pellet";
+export function classifyMorphology(
+  aspectRatio: number,
+  circularity: number,
+  feret: number,
+  minFeret: number,
+): Morphology {
+  if (aspectRatio <= 0.33 || aspectRatio >= 3) {
+    return "fibre";
+  }
+  if (circularity > 0.90) {
+    return "sphere";
+  }
+  const feretRatio =
+    feret > 0 && minFeret > 0
+      ? minFeret / feret
+      : 0;
+  const nearSquareBoundingBox =
+    aspectRatio >= 0.85 &&
+    aspectRatio <= 1.18;
+  const nearEqualFeretDiameters =
+    feretRatio >= 0.85;
+  if (
+    circularity > 0.60 &&
+    nearSquareBoundingBox &&
+    nearEqualFeretDiameters
+  ) {
+    return "sphere";
+  }
+  if (circularity > 0.60) {
+    return "pellet";
+  }
   return "fragment";
 }
+
 
 /** ImageJ's unweighted RGB -> 8-bit conversion. */
 function toGray(data: Uint8ClampedArray, n: number): Uint8Array {
