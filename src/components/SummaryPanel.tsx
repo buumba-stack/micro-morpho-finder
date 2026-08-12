@@ -7,6 +7,8 @@ import {
   summaryCsv,
   type ExportRow,
 } from "@/lib/export-results";
+import { MICROFLUOR_VERSION } from "@/lib/app-version";
+
 
 const MORPH_CLASS: Record<string, string> = {
   fibre: "text-fibre",
@@ -35,11 +37,15 @@ function buildRows(entries: ImageEntry[]): ExportRow[] {
         circularity: p.circularity,
         morphology: p.morphology,
         status: p.rejected ? "rejected" : "accepted",
+        microfluorVersion: e.run?.microfluor_version ?? MICROFLUOR_VERSION,
+        analysisRunId: e.run?.analysis_run_id ?? "",
+        analysisTimestamp: e.run?.analysis_timestamp ?? "",
       });
     }
   }
   return rows;
 }
+
 
 export function SummaryPanel({ entries }: { entries: ImageEntry[] }) {
   const rows = useMemo(() => buildRows(entries), [entries]);
@@ -152,6 +158,11 @@ export function SummaryPanel({ entries }: { entries: ImageEntry[] }) {
           Summary per tissue
         </button>
       </div>
+      <p className="font-mono text-[11px] text-muted-foreground">
+        Exports include microfluor_version {MICROFLUOR_VERSION}, analysis_run_id and
+        analysis_timestamp per image.
+      </p>
+
     </div>
   );
 }

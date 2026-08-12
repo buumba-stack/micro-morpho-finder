@@ -1,11 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { GatewayError, collectText, openResponsesStream, GPT5_MODEL } from "@/lib/gpt5.server";
 import {
-  CORS_HEADERS,
-  GatewayError,
-  collectText,
-  openResponsesStream,
-} from "@/lib/gpt5.server";
+  AI_CORS_HEADERS as CORS_HEADERS,
+  authenticateAiRequest,
+  clientUpdateRequired,
+  commitReviewSuccess,
+  logReviewAttempt,
+  quotaExhausted,
+  releaseReviewCredit,
+  reserveReviewCredit,
+} from "@/lib/ai-quota.server";
+
 
 const ParticleSchema = z.object({
   id: z.number(),
@@ -104,6 +110,10 @@ export const Route = createFileRoute("/api/public/ai-qc")({
     handlers: {
       OPTIONS: () => new Response(null, { status: 204, headers: CORS_HEADERS }),
       POST: async ({ request }) => {
+        // 1. Authentication — old clients send no bearer token.
+        const caller = await authenticateAiRequest(request);
+        if (!caller) return clientUpdateRequired();
+
         let body: z.infer<typeof BodySchema>;
         try {
           body = BodySchema.parse(await request.json());
@@ -113,6 +123,33 @@ export const Route = createFileRoute("/api/public/ai-qc")({
             headers: CORS_HEADERS,
           });
         }
+
+        // 2. Reserve the entitlement BEFORE any gateway traffic.
+        let remaining: number | null = null;
+        if (!caller.unlimited) {
+          try {
+            remaining = await reserveReviewCredit(caller.userId);
+          } catch (err) {
+            return new Response(err instanceof Error ? err.message : "Quota check failed", {
+              status: 503,
+              headers: CORS_HEADERS,
+            });
+          }
+          if (remaining === null) {
+            await logReviewAttempt({
+              userId: caller.userId,
+              success: false,
+              charged: false,
+              ownerExempt: false,
+              remainingAfter: 0,
+              clientVersion: caller.clientVersion,
+              model: GPT5_MODEL,
+              errorCode: "ai_review_quota_exhausted",
+            });
+            return quotaExhausted();
+          }
+        }
+
 
         const content: unknown[] = [
           {
@@ -153,16 +190,45 @@ export const Route = createFileRoute("/api/public/ai-qc")({
             reasoningEffort: "low",
           });
           const text = await collectText(stream);
-          const parsed = text ? (JSON.parse(text) as unknown) : { reviews: [] };
-          return Response.json(parsed, { headers: CORS_HEADERS });
+          const parsed = text ? (JSON.parse(text) as Record<string, unknown>) : { reviews: [] };
+          if (!caller.unlimited) await commitReviewSuccess(caller.userId);
+          await logReviewAttempt({
+            userId: caller.userId,
+            success: true,
+            charged: !caller.unlimited,
+            ownerExempt: caller.unlimited,
+            remainingAfter: remaining,
+            clientVersion: caller.clientVersion,
+            model: GPT5_MODEL,
+          });
+          return Response.json(
+            {
+              ...parsed,
+              credits: caller.unlimited ? { unlimited: true } : { remaining },
+            },
+            { headers: CORS_HEADERS },
+          );
         } catch (err) {
           const status = err instanceof GatewayError ? err.status : 500;
           console.error("ai-qc failed", err);
+          // A failed call must never permanently consume a credit.
+          if (!caller.unlimited) remaining = await releaseReviewCredit(caller.userId);
+          await logReviewAttempt({
+            userId: caller.userId,
+            success: false,
+            charged: false,
+            ownerExempt: caller.unlimited,
+            remainingAfter: remaining,
+            clientVersion: caller.clientVersion,
+            model: GPT5_MODEL,
+            errorCode: `gateway_${status}`,
+          });
           return new Response(err instanceof Error ? err.message : "AI review failed", {
             status,
             headers: CORS_HEADERS,
           });
         }
+
       },
     },
   },

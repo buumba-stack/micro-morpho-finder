@@ -1,6 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { CORS_HEADERS, GatewayError, openResponsesStream, sseEvents } from "@/lib/gpt5.server";
+import { GatewayError, openResponsesStream, sseEvents, GPT5_MODEL } from "@/lib/gpt5.server";
+import {
+  AI_CHAT_DAILY_LIMIT,
+  AI_CORS_HEADERS as CORS_HEADERS,
+  authenticateAiRequest,
+  chatRateLimited,
+  chatRecentCount,
+  clientUpdateRequired,
+  logChatAttempt,
+} from "@/lib/ai-quota.server";
+
 
 const BodySchema = z.object({
   dataset: z.string().max(200000),
@@ -32,6 +42,9 @@ export const Route = createFileRoute("/api/public/ai-chat")({
     handlers: {
       OPTIONS: () => new Response(null, { status: 204, headers: CORS_HEADERS }),
       POST: async ({ request }) => {
+        const caller = await authenticateAiRequest(request);
+        if (!caller) return clientUpdateRequired();
+
         let body: z.infer<typeof BodySchema>;
         try {
           body = BodySchema.parse(await request.json());
@@ -41,6 +54,21 @@ export const Route = createFileRoute("/api/public/ai-chat")({
             headers: CORS_HEADERS,
           });
         }
+
+        // Abuse-prevention cap only — AI Chat never touches AI Review credits.
+        if (!caller.unlimited) {
+          let used: number;
+          try {
+            used = await chatRecentCount(caller.userId);
+          } catch (err) {
+            return new Response(err instanceof Error ? err.message : "Usage check failed", {
+              status: 503,
+              headers: CORS_HEADERS,
+            });
+          }
+          if (used >= AI_CHAT_DAILY_LIMIT) return chatRateLimited();
+        }
+
 
         const input = [
           {
@@ -73,6 +101,13 @@ export const Route = createFileRoute("/api/public/ai-chat")({
         } catch (err) {
           const status = err instanceof GatewayError ? err.status : 500;
           console.error("ai-chat failed", err);
+          await logChatAttempt({
+            userId: caller.userId,
+            success: false,
+            ownerExempt: caller.unlimited,
+            clientVersion: caller.clientVersion,
+            model: GPT5_MODEL,
+          });
           return new Response(err instanceof Error ? err.message : "AI chat failed", {
             status,
             headers: CORS_HEADERS,
@@ -92,12 +127,27 @@ export const Route = createFileRoute("/api/public/ai-chat")({
                 }
               }
               controller.close();
+              await logChatAttempt({
+                userId: caller.userId,
+                success: true,
+                ownerExempt: caller.unlimited,
+                clientVersion: caller.clientVersion,
+                model: GPT5_MODEL,
+              });
             } catch (err) {
               console.error("ai-chat stream error", err);
+              await logChatAttempt({
+                userId: caller.userId,
+                success: false,
+                ownerExempt: caller.unlimited,
+                clientVersion: caller.clientVersion,
+                model: GPT5_MODEL,
+              });
               controller.error(err);
             }
           },
         });
+
 
         return new Response(stream, {
           headers: {

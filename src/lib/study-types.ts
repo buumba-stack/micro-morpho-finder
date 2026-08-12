@@ -1,5 +1,6 @@
 import type { ImageAnalysis, AnalysisSettings } from "./particle-analysis";
 import type { BlankMatchMap } from "./blank-matching";
+import type { AnalysisRun } from "./analysis-run";
 
 export type ImageStatus = "pending" | "running" | "done" | "error";
 
@@ -12,8 +13,11 @@ export interface EntryDraft {
   runSettings: AnalysisSettings;
   analysisId: string;
   blankMatches?: BlankMatchMap | undefined;
+  /** provenance of the run that produced this draft */
+  run: AnalysisRun;
   createdAt: string;
 }
+
 
 export interface ImageEntry {
   id: string;
@@ -28,6 +32,9 @@ export interface ImageEntry {
   /** changes whenever the detector re-segments this image (AI-review cache key) */
   analysisId?: string | undefined;
   analysis?: ImageAnalysis | undefined;
+  /** provenance of the run that produced the committed `analysis` */
+  run?: AnalysisRun | undefined;
+
   /** pending re-analysis awaiting the user's "Update batch" confirmation */
   draft?: EntryDraft | undefined;
   /** how many times this image's batch record has been updated by re-analysis */

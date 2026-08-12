@@ -19,6 +19,8 @@ import { BlankLibraryPanel } from "@/components/BlankLibraryPanel";
 import { useBlankLibrary } from "@/hooks/useBlankLibrary";
 import { countConfirmed } from "@/lib/blank-library";
 import { clearSession, loadSession, saveSession } from "@/lib/session-store";
+import { newAnalysisRun } from "@/lib/analysis-run";
+
 
 import type { AiReview } from "@/lib/ai-client";
 
@@ -109,6 +111,8 @@ export function AnalyzerApp() {
       analysis: current.draft.analysis,
       runSettings: current.draft.runSettings,
       analysisId: current.draft.analysisId,
+      run: current.draft.run,
+
       blankMatches: current.draft.blankMatches,
       blankKeep: [],
     };
@@ -166,6 +170,7 @@ export function AnalyzerApp() {
           blanks.library,
         );
         const analysisId = `${Date.now()}`;
+        const run = newAnalysisRun();
         setEntries((prev) =>
           prev.map((e) =>
             e.id === entry.id
@@ -179,6 +184,7 @@ export function AnalyzerApp() {
                       runSettings: { ...settings },
                       analysisId,
                       blankMatches,
+                      run,
                       createdAt: new Date().toISOString(),
                     },
                   }
@@ -188,6 +194,7 @@ export function AnalyzerApp() {
                     analysis,
                     runSettings: { ...settings },
                     analysisId,
+                    run,
                     blankMatches,
                     blankKeep: [],
                     draft: undefined,
@@ -196,6 +203,7 @@ export function AnalyzerApp() {
               : e,
           ),
         );
+
       } catch (err) {
         setEntries((prev) =>
           prev.map((e) =>
@@ -262,7 +270,9 @@ export function AnalyzerApp() {
               analysis: e.draft.analysis,
               runSettings: e.draft.runSettings,
               analysisId: e.draft.analysisId,
+              run: e.draft.run,
               blankMatches: e.draft.blankMatches,
+
               blankKeep: [],
               revision: (e.revision ?? 0) + 1,
               updatedAt: new Date().toISOString(),
@@ -373,8 +383,10 @@ export function AnalyzerApp() {
               runSettings: { ...(e.runSettings ?? e.settings) },
               analysisId: e.analysisId ?? `${Date.now()}`,
               blankMatches: r.blankMatches,
+              run: newAnalysisRun(),
               createdAt: new Date().toISOString(),
             },
+
           };
         }),
       );
