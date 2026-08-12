@@ -1,0 +1,19 @@
+MICROFLUOR PROPRIETARY SOFTWARE LICENSE
+
+Copyright © 2026 Buumba Hampuwo.
+All Rights Reserved.
+
+MicroFluor and its original source code, user interface, documentation, workflows, designs, business logic, algorithms, configurations, and other original components are proprietary software owned by Buumba Hampuwo.
+
+Except where expressly authorized in writing by Buumba Hampuwo, no person or entity may copy, reproduce, distribute, publish, sublicense, sell, commercially exploit, or create derivative works from the proprietary portions of MicroFluor.
+
+No license to the proprietary portions of MicroFluor is granted except for the limited right necessary for an authorized user to operate the software for its intended purpose.
+
+This license does not claim ownership of third-party software incorporated into or distributed with MicroFluor. Third-party software remains the property of its respective copyright holders and is governed by its applicable open-source or other license terms.
+
+All third-party copyright notices, attribution notices, and license terms included with MicroFluor remain in full force and must be retained where required by their respective licenses.
+
+THE SOFTWARE IS PROVIDED "AS IS", TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+Copyright © 2026 Buumba Hampuwo.
+All Rights Reserved.

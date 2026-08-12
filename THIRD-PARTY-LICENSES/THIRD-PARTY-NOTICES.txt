@@ -1,0 +1,33 @@
+MICROFLUOR THIRD-PARTY SOFTWARE NOTICES
+
+MicroFluor incorporates and/or is distributed with third-party software and open-source components.
+
+These third-party components are not owned by Buumba Hampuwo and remain subject to their respective copyright notices and license terms.
+
+Third-party components may include, among others:
+
+Electron
+
+Chromium
+
+React
+
+TanStack
+
+Radix UI
+
+Tailwind CSS
+
+Recharts
+
+Zod
+
+other JavaScript, web, and native dependencies
+
+Relevant copyright notices and license terms are included with the application or within the applicable dependency distributions.
+
+The inclusion of third-party software does not change the proprietary status of MicroFluor's original components.
+
+MicroFluor
+Copyright © 2026 Buumba Hampuwo.
+All Rights Reserved.
