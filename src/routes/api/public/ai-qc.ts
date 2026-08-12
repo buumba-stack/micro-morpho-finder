@@ -110,6 +110,10 @@ export const Route = createFileRoute("/api/public/ai-qc")({
     handlers: {
       OPTIONS: () => new Response(null, { status: 204, headers: CORS_HEADERS }),
       POST: async ({ request }) => {
+        // 1. Authentication — old clients send no bearer token.
+        const caller = await authenticateAiRequest(request);
+        if (!caller) return clientUpdateRequired();
+
         let body: z.infer<typeof BodySchema>;
         try {
           body = BodySchema.parse(await request.json());
@@ -119,6 +123,33 @@ export const Route = createFileRoute("/api/public/ai-qc")({
             headers: CORS_HEADERS,
           });
         }
+
+        // 2. Reserve the entitlement BEFORE any gateway traffic.
+        let remaining: number | null = null;
+        if (!caller.unlimited) {
+          try {
+            remaining = await reserveReviewCredit(caller.userId);
+          } catch (err) {
+            return new Response(err instanceof Error ? err.message : "Quota check failed", {
+              status: 503,
+              headers: CORS_HEADERS,
+            });
+          }
+          if (remaining === null) {
+            await logReviewAttempt({
+              userId: caller.userId,
+              success: false,
+              charged: false,
+              ownerExempt: false,
+              remainingAfter: 0,
+              clientVersion: caller.clientVersion,
+              model: GPT5_MODEL,
+              errorCode: "ai_review_quota_exhausted",
+            });
+            return quotaExhausted();
+          }
+        }
+
 
         const content: unknown[] = [
           {
