@@ -93,12 +93,17 @@ export function summaryCsv(rows: ExportRow[], groupBy: "file" | "tissue"): strin
     "Mean Feret (um)",
     "Mean circularity",
     "Mean aspect ratio",
+    "microfluor_version",
+    "analysis_run_id",
+    "analysis_timestamp",
   ];
   const lines = [...groups.entries()].map(([key, list]) => {
     const total = list.length;
     const counts = MORPHOLOGIES.map((m) => list.filter((r) => r.morphology === m).length);
     const mean = (f: (r: ExportRow) => number) =>
       total ? list.reduce((s, r) => s + f(r), 0) / total : 0;
+    const runIds = [...new Set(list.map((r) => r.analysisRunId).filter(Boolean))];
+    const stamps = list.map((r) => r.analysisTimestamp).filter(Boolean).sort();
     return [
       csvCell(key),
       String(total),
@@ -108,7 +113,11 @@ export function summaryCsv(rows: ExportRow[], groupBy: "file" | "tissue"): strin
       num(mean((r) => r.feret), 3),
       num(mean((r) => r.circularity), 4),
       num(mean((r) => r.aspectRatio), 4),
+      csvCell(MICROFLUOR_VERSION),
+      csvCell(runIds.length === 1 ? runIds[0]! : runIds.join(" ")),
+      csvCell(stamps.length ? stamps[stamps.length - 1]! : ""),
     ].join(",");
+
   });
   return [header.join(","), ...lines].join("\n");
 }
