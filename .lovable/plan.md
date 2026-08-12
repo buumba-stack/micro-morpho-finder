@@ -97,9 +97,16 @@ All owner requests are still logged for audit.
 
 ### Files touched
 
-Changed: `src/routes/api/public/ai-qc.ts`, `src/lib/ai-client.ts`, `src/components/AiPanel.tsx`, `src/components/SummaryPanel.tsx`, `src/lib/export-results.ts`, `src/components/AnalyzerApp.tsx`, `src/lib/study-types.ts`, `src/lib/session-store.ts`, `package.json`, `scripts/package-windows.mjs`, `src/start.ts` (bearer middleware only if needed).
-New: `src/lib/app-version.ts`, `src/lib/analysis-run.ts`, `src/lib/ai-quota.server.ts`, `src/routes/auth.tsx`, `src/hooks/useAuth.ts`, one Cloud migration.
+Changed: `src/routes/api/public/ai-qc.ts`, `src/routes/api/public/ai-chat.ts` (auth + cap wrapper only), `src/lib/ai-client.ts`, `src/components/AiPanel.tsx`, `src/components/SummaryPanel.tsx`, `src/lib/export-results.ts`, `src/components/AnalyzerApp.tsx`, `src/lib/study-types.ts`, `src/lib/session-store.ts`, `package.json`, `scripts/package-windows.mjs`.
+New: `src/lib/app-version.ts`, `src/lib/analysis-run.ts`, `src/lib/ai-quota.server.ts` (auth + role check + reservation + chat cap constant), `src/routes/auth.tsx`, `src/hooks/useAuth.ts`, one Cloud migration (`profiles`, `ai_review_credits`, `user_roles`/`has_role`, `ai_review_audit`, `ai_chat_usage`, reserve/release functions, signup trigger).
 
-### Tests after implementation
+### Tests before publishing
 
-Owner role row verified in the database before rollout, then owner unlimited past 6/10+ reviews with zero deduction. Quota sequence 5→0 and blocked 6th (no gateway call), simulated upstream failure leaves balance unchanged, persistence across refresh/logout/login, unauthenticated curl gets `client_update_required`, frontend tampering ineffective, spoofed user id/admin flag ignored, concurrent last-credit double-spend prevented, app opens and analyses normally with Cloud unreachable, scientific regression on existing micrographs (counts, measurements, morphology, thresholds identical), and export verification.
+- **Signed out:** local analysis + exports work; AI Review and AI Chat both blocked pre-gateway.
+- **New confirmed account:** 5/5 → review #1 leaves 4 → review #5 leaves 0 → #6 returns 429 `ai_review_quota_exhausted` with no gateway call; a simulated upstream failure leaves the balance unchanged; chat works and does not touch review credits; exceeding the configured chat cap returns 429 `ai_chat_rate_limit_reached` pre-gateway.
+- **Owner:** role row verified in the database first; then 10+ reviews and 50+ chats (or a safe simulated equivalent) all allowed, zero deductions, no cap, requests logged.
+- **Security:** unauthenticated POSTs to both endpoints rejected; fake user id / admin flag ignored; frontend credit tampering ineffective; concurrent last-credit race consumes exactly one entitlement; old client cannot bypass; secrets never leave the server.
+- **Cloud down:** app launches, analyses, edits and exports normally; only AI + account display degrade with a clear message.
+- **Scientific regression:** representative micrographs before/after — identical counts, measurements, morphology, circularity, calibration, thresholds, blank handling, classifications and exported numbers.
+- **Provenance:** every export carries `microfluor_version = 2.5`, `analysis_run_id`, `analysis_timestamp`, and stays importable in R/Python/Excel.
+
