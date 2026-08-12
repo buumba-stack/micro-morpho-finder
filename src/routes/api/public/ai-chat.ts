@@ -101,6 +101,13 @@ export const Route = createFileRoute("/api/public/ai-chat")({
         } catch (err) {
           const status = err instanceof GatewayError ? err.status : 500;
           console.error("ai-chat failed", err);
+          await logChatAttempt({
+            userId: caller.userId,
+            success: false,
+            ownerExempt: caller.unlimited,
+            clientVersion: caller.clientVersion,
+            model: GPT5_MODEL,
+          });
           return new Response(err instanceof Error ? err.message : "AI chat failed", {
             status,
             headers: CORS_HEADERS,
@@ -120,12 +127,27 @@ export const Route = createFileRoute("/api/public/ai-chat")({
                 }
               }
               controller.close();
+              await logChatAttempt({
+                userId: caller.userId,
+                success: true,
+                ownerExempt: caller.unlimited,
+                clientVersion: caller.clientVersion,
+                model: GPT5_MODEL,
+              });
             } catch (err) {
               console.error("ai-chat stream error", err);
+              await logChatAttempt({
+                userId: caller.userId,
+                success: false,
+                ownerExempt: caller.unlimited,
+                clientVersion: caller.clientVersion,
+                model: GPT5_MODEL,
+              });
               controller.error(err);
             }
           },
         });
+
 
         return new Response(stream, {
           headers: {
