@@ -190,16 +190,45 @@ export const Route = createFileRoute("/api/public/ai-qc")({
             reasoningEffort: "low",
           });
           const text = await collectText(stream);
-          const parsed = text ? (JSON.parse(text) as unknown) : { reviews: [] };
-          return Response.json(parsed, { headers: CORS_HEADERS });
+          const parsed = text ? (JSON.parse(text) as Record<string, unknown>) : { reviews: [] };
+          if (!caller.unlimited) await commitReviewSuccess(caller.userId);
+          await logReviewAttempt({
+            userId: caller.userId,
+            success: true,
+            charged: !caller.unlimited,
+            ownerExempt: caller.unlimited,
+            remainingAfter: remaining,
+            clientVersion: caller.clientVersion,
+            model: GPT5_MODEL,
+          });
+          return Response.json(
+            {
+              ...parsed,
+              credits: caller.unlimited ? { unlimited: true } : { remaining },
+            },
+            { headers: CORS_HEADERS },
+          );
         } catch (err) {
           const status = err instanceof GatewayError ? err.status : 500;
           console.error("ai-qc failed", err);
+          // A failed call must never permanently consume a credit.
+          if (!caller.unlimited) remaining = await releaseReviewCredit(caller.userId);
+          await logReviewAttempt({
+            userId: caller.userId,
+            success: false,
+            charged: false,
+            ownerExempt: caller.unlimited,
+            remainingAfter: remaining,
+            clientVersion: caller.clientVersion,
+            model: GPT5_MODEL,
+            errorCode: `gateway_${status}`,
+          });
           return new Response(err instanceof Error ? err.message : "AI review failed", {
             status,
             headers: CORS_HEADERS,
           });
         }
+
       },
     },
   },
