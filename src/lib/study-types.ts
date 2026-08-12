@@ -1,5 +1,6 @@
 import type { ImageAnalysis, AnalysisSettings } from "./particle-analysis";
 import type { BlankMatchMap } from "./blank-matching";
+import type { AnalysisRun } from "./analysis-run";
 
 export type ImageStatus = "pending" | "running" | "done" | "error";
 
@@ -12,8 +13,11 @@ export interface EntryDraft {
   runSettings: AnalysisSettings;
   analysisId: string;
   blankMatches?: BlankMatchMap | undefined;
+  /** provenance of the run that produced this draft */
+  run: AnalysisRun;
   createdAt: string;
 }
+
 
 export interface ImageEntry {
   id: string;
