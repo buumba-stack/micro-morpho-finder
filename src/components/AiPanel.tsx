@@ -46,6 +46,13 @@ export function AiPanel({
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const { loading: authLoading, unavailable, account, refresh, signOut } = useAuth();
+  const [credits, setCredits] = useState<number | null>(null);
+
+  useEffect(() => {
+    setCredits(account?.creditsRemaining ?? null);
+  }, [account?.creditsRemaining]);
+
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
