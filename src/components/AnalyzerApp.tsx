@@ -262,7 +262,9 @@ export function AnalyzerApp() {
               analysis: e.draft.analysis,
               runSettings: e.draft.runSettings,
               analysisId: e.draft.analysisId,
+              run: e.draft.run,
               blankMatches: e.draft.blankMatches,
+
               blankKeep: [],
               revision: (e.revision ?? 0) + 1,
               updatedAt: new Date().toISOString(),
