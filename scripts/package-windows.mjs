@@ -62,6 +62,10 @@ const appPaths = await packager({
     /^\/bun\.lock$/,
     /^\/package-lock\.json$/,
     /^\/\.prettier.*$/,
+    /^\/\.tanstack($|\/)/,
+    /^\/\.workspace($|\/)/,
+    /^\/\.gitignore$/,
+    /^\/tsconfig\.tsbuildinfo$/,
     /\.map$/,
   ],
 });
