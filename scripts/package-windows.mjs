@@ -12,7 +12,7 @@
  */
 import { cp, mkdir, readdir, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
-import packager from "@electron/packager";
+import { packager } from "@electron/packager";
 
 const root = path.resolve(import.meta.dirname, "..");
 const outDir = path.join(root, "electron-release");
