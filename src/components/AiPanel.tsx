@@ -251,9 +251,9 @@ export function AiPanel({
         ) : (
           <>
             <span className="text-accent">Sign in to use the AI features (5 free reviews).</span>
-            <Link to="/auth" className="btn-primary ml-auto px-2 py-0.5">
+            <a href={authHref} {...authLinkProps} className="btn-primary ml-auto px-2 py-0.5">
               Sign in
-            </Link>
+            </a>
             <button className="btn-ghost px-2 py-0.5" onClick={() => void refresh()}>
               Refresh
             </button>
