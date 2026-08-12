@@ -41,7 +41,7 @@ Owner/admin path skips both functions entirely, so no balance can ever be decrem
 
 Order inside the existing handler, before any gateway contact:
 
-1. Read `Authorization: Bearer <token>`; if absent → `401` with `{ code: "client_update_required", message: "AI Review requires MicroFluor v2.5 or later. Please update MicroFluor to continue using AI Review." }`.
+1. Read `Authorization: Bearer <token>`; if absent or unsupported (every pre-2.5 desktop client) → HTTP 401 with a machine-readable body, not a bare status: `{ "error": "client_update_required", "minimum_version": "2.5", "message": "AI Review requires MicroFluor v2.5 or later. Please update MicroFluor to continue using AI Review." }`. Old clients surface that message; their offline local analysis is untouched and keeps working.
 2. Validate the token server-side to get the real user id (ignore any user id/role/email in the body).
 3. `has_role(owner|admin)` → allowed, no reservation.
 4. Normal user → `reserve_ai_review_credit`; if it returns no row → `402` with the quota message, and the gateway is never called.
