@@ -1,6 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { CORS_HEADERS, GatewayError, openResponsesStream, sseEvents } from "@/lib/gpt5.server";
+import { GatewayError, openResponsesStream, sseEvents, GPT5_MODEL } from "@/lib/gpt5.server";
+import {
+  AI_CHAT_DAILY_LIMIT,
+  AI_CORS_HEADERS as CORS_HEADERS,
+  authenticateAiRequest,
+  chatRateLimited,
+  chatRecentCount,
+  clientUpdateRequired,
+  logChatAttempt,
+} from "@/lib/ai-quota.server";
+
 
 const BodySchema = z.object({
   dataset: z.string().max(200000),
