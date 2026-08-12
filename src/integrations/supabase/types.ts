@@ -14,16 +14,164 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ai_chat_usage: {
+        Row: {
+          client_version: string | null
+          created_at: string
+          id: string
+          model: string | null
+          owner_exempt: boolean
+          success: boolean
+          user_id: string
+        }
+        Insert: {
+          client_version?: string | null
+          created_at?: string
+          id?: string
+          model?: string | null
+          owner_exempt?: boolean
+          success?: boolean
+          user_id: string
+        }
+        Update: {
+          client_version?: string | null
+          created_at?: string
+          id?: string
+          model?: string | null
+          owner_exempt?: boolean
+          success?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_review_audit: {
+        Row: {
+          charged: boolean
+          client_version: string | null
+          created_at: string
+          error_code: string | null
+          gateway_request_id: string | null
+          id: string
+          model: string | null
+          owner_exempt: boolean
+          remaining_after: number | null
+          success: boolean
+          user_id: string
+        }
+        Insert: {
+          charged?: boolean
+          client_version?: string | null
+          created_at?: string
+          error_code?: string | null
+          gateway_request_id?: string | null
+          id?: string
+          model?: string | null
+          owner_exempt?: boolean
+          remaining_after?: number | null
+          success?: boolean
+          user_id: string
+        }
+        Update: {
+          charged?: boolean
+          client_version?: string | null
+          created_at?: string
+          error_code?: string | null
+          gateway_request_id?: string | null
+          id?: string
+          model?: string | null
+          owner_exempt?: boolean
+          remaining_after?: number | null
+          success?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_review_credits: {
+        Row: {
+          created_at: string
+          credits_granted: number
+          credits_remaining: number
+          successful_reviews: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_granted?: number
+          credits_remaining?: number
+          successful_reviews?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_granted?: number
+          credits_remaining?: number
+          successful_reviews?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      ai_chat_recent_count: { Args: { _user_id: string }; Returns: number }
+      commit_ai_review_success: { Args: { _user_id: string }; Returns: number }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_ai_unlimited: { Args: { _user_id: string }; Returns: boolean }
+      release_ai_review_credit: { Args: { _user_id: string }; Returns: number }
+      reserve_ai_review_credit: { Args: { _user_id: string }; Returns: number }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "owner" | "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +298,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["owner", "admin", "user"],
+    },
   },
 } as const
