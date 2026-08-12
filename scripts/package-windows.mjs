@@ -35,7 +35,7 @@ const appPaths = await packager({
   out: outDir,
   overwrite: true,
   asar: true,
-  appVersion: "1.0.0",
+  appVersion,
   appCopyright: "Copyright © 2026 Buumba Hampuwo. All Rights Reserved.",
   win32metadata: {
     CompanyName: "Buumba Hampuwo",
