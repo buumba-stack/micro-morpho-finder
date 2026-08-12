@@ -127,8 +127,12 @@ export function AiPanel({
               : {}),
           })),
         });
-        all.push(...got);
+        all.push(...got.reviews);
+        if (got.credits && !got.credits.unlimited) {
+          setCredits(got.credits.remaining ?? null);
+        }
         onReviews(target.id, [...all]);
+
       }
       return all.length;
     },
