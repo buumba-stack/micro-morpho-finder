@@ -42,6 +42,9 @@ export const Route = createFileRoute("/api/public/ai-chat")({
     handlers: {
       OPTIONS: () => new Response(null, { status: 204, headers: CORS_HEADERS }),
       POST: async ({ request }) => {
+        const caller = await authenticateAiRequest(request);
+        if (!caller) return clientUpdateRequired();
+
         let body: z.infer<typeof BodySchema>;
         try {
           body = BodySchema.parse(await request.json());
@@ -51,6 +54,21 @@ export const Route = createFileRoute("/api/public/ai-chat")({
             headers: CORS_HEADERS,
           });
         }
+
+        // Abuse-prevention cap only — AI Chat never touches AI Review credits.
+        if (!caller.unlimited) {
+          let used: number;
+          try {
+            used = await chatRecentCount(caller.userId);
+          } catch (err) {
+            return new Response(err instanceof Error ? err.message : "Usage check failed", {
+              status: 503,
+              headers: CORS_HEADERS,
+            });
+          }
+          if (used >= AI_CHAT_DAILY_LIMIT) return chatRateLimited();
+        }
+
 
         const input = [
           {
