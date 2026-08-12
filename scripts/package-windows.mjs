@@ -10,12 +10,16 @@
  *   THIRD-PARTY-LICENSES/LICENSES.chromium.html       (Chromium notices, unmodified)
  *   THIRD-PARTY-LICENSES/THIRD-PARTY-NOTICES.txt
  */
-import { cp, mkdir, readdir, rename, rm, stat } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { packager } from "@electron/packager";
 
 const root = path.resolve(import.meta.dirname, "..");
 const outDir = path.join(root, "electron-release");
+
+/** package.json is the single authoritative source of the MicroFluor version. */
+const appVersion = JSON.parse(await readFile(path.join(root, "package.json"), "utf8")).version;
+
 
 const exists = (p) =>
   stat(p).then(
