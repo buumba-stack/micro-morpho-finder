@@ -14,7 +14,12 @@
 
 ### 1. Backend (Lovable Cloud)
 
-Enable Lovable Cloud (gives auth + Postgres). New tables:
+Cloud is added **only** as an access-control and accounting layer for AI Review. The auth client is loaded lazily and its failure is contained: if Cloud/auth is unreachable, the app still opens and the full local deterministic analysis (upload, detect, threshold, edit, blanks, exports) runs normally — only the AI Review buttons degrade to "AI Review unavailable — sign-in service unreachable". No analysis, viewer, export or session-store code path awaits a Cloud call.
+
+Email confirmation is required at signup (verified email is the anti-abuse floor for the 5 free credits); no other identity checks, no payments. Credits are only granted to a confirmed user.
+
+New tables:
+
 
 - `profiles` — `user_id`, `email`, `created_at` (created by trigger on signup).
 - `ai_review_credits` — `user_id` (PK), `credits_granted` (default 5), `credits_remaining` (default 5), `successful_reviews`, `created_at`, `updated_at`. Seeded with 5 by the same signup trigger.
