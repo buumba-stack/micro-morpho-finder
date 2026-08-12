@@ -19,6 +19,8 @@ import { BlankLibraryPanel } from "@/components/BlankLibraryPanel";
 import { useBlankLibrary } from "@/hooks/useBlankLibrary";
 import { countConfirmed } from "@/lib/blank-library";
 import { clearSession, loadSession, saveSession } from "@/lib/session-store";
+import { newAnalysisRun } from "@/lib/analysis-run";
+
 
 import type { AiReview } from "@/lib/ai-client";
 
