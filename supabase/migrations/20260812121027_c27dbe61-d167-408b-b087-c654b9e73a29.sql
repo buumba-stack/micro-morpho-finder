@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.is_ai_unlimited(uuid) FROM authenticated;
