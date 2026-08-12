@@ -431,6 +431,15 @@ export function analyzeImageData(
     const aspectRatio = width / height;
     const feret = feretMetrics(convexHull(outlinePts));
 
+    // Morphology-only metric: circularity of a hole-filled temporary copy.
+    // The outline traced above is the OUTER boundary, so perimeterPx already is
+    // the external perimeter of the filled silhouette.
+    const filledArea =
+      filledAreaPx(labels, w, h, label, minX, minY, maxX, maxY, count) * scale * scale;
+    let shapeCircularity = (4 * Math.PI * filledArea) / (perimeter * perimeter);
+    if (shapeCircularity > 1) shapeCircularity = 1;
+
+
     particles.push({
       id: nextId++,
       areaPx: count,
