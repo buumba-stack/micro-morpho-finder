@@ -151,6 +151,64 @@ export function otsuThreshold(gray: Uint8Array): number {
   return best;
 }
 
+/**
+ * Morphology-only helper: pixel area of the hole-filled silhouette of one
+ * connected component. Works on a TEMPORARY copy; the label/binary data and
+ * every reported measurement stay untouched.
+ */
+function filledAreaPx(
+  labels: Int32Array,
+  w: number,
+  h: number,
+  label: number,
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+  areaPx: number,
+): number {
+  const x0 = minX - 1;
+  const y0 = minY - 1;
+  const bw = maxX - minX + 3;
+  const bh = maxY - minY + 3;
+  const seen = new Uint8Array(bw * bh);
+  const stack: number[] = [0];
+  seen[0] = 1;
+  while (stack.length) {
+    const p = stack.pop()!;
+    const lx = p % bw;
+    const ly = (p - lx) / bw;
+    const steps = [
+      [lx + 1, ly],
+      [lx - 1, ly],
+      [lx, ly + 1],
+      [lx, ly - 1],
+    ] as const;
+    for (const [nx, ny] of steps) {
+      if (nx < 0 || ny < 0 || nx >= bw || ny >= bh) continue;
+      const li = ny * bw + nx;
+      if (seen[li]) continue;
+      const gx = x0 + nx;
+      const gy = y0 + ny;
+      const inside = gx >= 0 && gy >= 0 && gx < w && gy < h;
+      if (inside && labels[gy * w + gx] === label) continue;
+      seen[li] = 1;
+      stack.push(li);
+    }
+  }
+  let holes = 0;
+  for (let ly = 0; ly < bh; ly++) {
+    for (let lx = 0; lx < bw; lx++) {
+      if (seen[ly * bw + lx]) continue;
+      const gx = x0 + lx;
+      const gy = y0 + ly;
+      if (gx < 0 || gy < 0 || gx >= w || gy >= h) continue;
+      if (labels[gy * w + gx] !== label) holes++;
+    }
+  }
+  return areaPx + holes;
+}
+
 const DIRS: ReadonlyArray<readonly [number, number]> = [
   [1, 0],
   [1, 1],
