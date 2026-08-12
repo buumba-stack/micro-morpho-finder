@@ -158,6 +158,11 @@ export function SummaryPanel({ entries }: { entries: ImageEntry[] }) {
           Summary per tissue
         </button>
       </div>
+      <p className="font-mono text-[11px] text-muted-foreground">
+        Exports include microfluor_version {MICROFLUOR_VERSION}, analysis_run_id and
+        analysis_timestamp per image.
+      </p>
+
     </div>
   );
 }
