@@ -381,8 +381,10 @@ export function AnalyzerApp() {
               runSettings: { ...(e.runSettings ?? e.settings) },
               analysisId: e.analysisId ?? `${Date.now()}`,
               blankMatches: r.blankMatches,
+              run: newAnalysisRun(),
               createdAt: new Date().toISOString(),
             },
+
           };
         }),
       );
