@@ -32,6 +32,9 @@ export interface ImageEntry {
   /** changes whenever the detector re-segments this image (AI-review cache key) */
   analysisId?: string | undefined;
   analysis?: ImageAnalysis | undefined;
+  /** provenance of the run that produced the committed `analysis` */
+  run?: AnalysisRun | undefined;
+
   /** pending re-analysis awaiting the user's "Update batch" confirmation */
   draft?: EntryDraft | undefined;
   /** how many times this image's batch record has been updated by re-analysis */
