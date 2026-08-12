@@ -7,6 +7,8 @@ import {
   summaryCsv,
   type ExportRow,
 } from "@/lib/export-results";
+import { MICROFLUOR_VERSION } from "@/lib/app-version";
+
 
 const MORPH_CLASS: Record<string, string> = {
   fibre: "text-fibre",
