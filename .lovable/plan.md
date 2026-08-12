@@ -44,33 +44,55 @@ Order inside the existing handler, before any gateway contact:
 1. Read `Authorization: Bearer <token>`; if absent or unsupported (every pre-2.5 desktop client) → HTTP 401 with a machine-readable body, not a bare status: `{ "error": "client_update_required", "minimum_version": "2.5", "message": "AI Review requires MicroFluor v2.5 or later. Please update MicroFluor to continue using AI Review." }`. Old clients surface that message; their offline local analysis is untouched and keeps working.
 2. Validate the token server-side to get the real user id (ignore any user id/role/email in the body).
 3. `has_role(owner|admin)` → allowed, no reservation.
-4. Normal user → `reserve_ai_review_credit`; if it returns no row → `402` with the quota message, and the gateway is never called.
+4. Normal user → `reserve_ai_review_credit`; if it returns no row → HTTP **429** `{ "error": "ai_review_quota_exhausted", "message": "You have used your 5 free AI Reviews. Standard MicroFluor analysis remains available. Additional AI Review credits may be available in a future version." }`, and the gateway is never called. (No 402 — there is no payment system.)
 5. Existing input validation and the existing prompt/model/schema call run unchanged.
-6. On gateway or parse failure → `refund_ai_review_credit`, log audit row with `charged=false`, return the error.
+6. On gateway or parse failure → `release_ai_review_credit`, log audit row with `charged=false`, return the error.
 7. On success → increment `successful_reviews`, log audit row with `charged=true`.
 
 Auth failure and validation failure both happen before reservation, so they can never cost a credit.
 
+### 2b. `/api/public/ai-chat` enforcement (amended — Chat is no longer anonymous)
+
+Same authentication gate, separate accounting. Chat never touches `ai_review_credits`.
+
+1. No/invalid bearer token → HTTP 401 with the same `client_update_required` / `minimum_version: "2.5"` body shape.
+2. Owner/admin (`has_role`) → unlimited, no cap, request still logged.
+3. Normal user → count that user's **successful** chat rows in `ai_chat_usage` over the rolling last 24 hours; if `>= AI_CHAT_DAILY_LIMIT` → HTTP 429 `{ "error": "ai_chat_rate_limit_reached", "message": "You have reached the temporary AI Chat usage limit. Please try again later." }` **before** any gateway traffic.
+4. Otherwise the existing streaming call runs completely unchanged — same prompt, `openai/gpt-5`, same SSE streaming and response format. A usage row is written when the stream completes successfully; failures are logged as `success=false` and do not count toward the cap.
+
+`AI_CHAT_DAILY_LIMIT = 50` lives in **one** server-side constant (in `src/lib/ai-quota.server.ts`); the number appears nowhere else. It's an abuse-prevention limit, so the UI mentions it only in the error message — never as a pricing/quota feature.
+
+New table `ai_chat_usage` — `id`, `user_id`, `created_at`, `success`, `owner_exempt`, `client_version`, `model`. Lightweight ledger only, no wallet, no credits.
+
 ### 3. Frontend (minimal)
 
-- New `/auth` route (email + password with email confirmation required) and a small `useAuth` hook. Sign-in is needed for AI Review only — never to open the app or analyse images.
-- `AiPanel.tsx`: AI Review buttons require a session; when signed out show a short "Sign in to use AI Review" CTA. Deterministic analysis, uploads, editing, exports, AI Chat all stay usable signed out, and also when Cloud is down.
-- Header/AI panel shows `AI Reviews remaining: X / 5`, or `AI Reviews: Unlimited — Owner`, read from the server after each review. Display only.
-- Zero-credit response renders exactly: "You have used your 5 free AI Reviews. Standard MicroFluor analysis remains available. Additional AI Review credits may be available in a future version."
-- `ai-client.ts` attaches the bearer token and the client version header to AI Review requests only — AI Chat's request code is untouched.
+- New `/auth` route (email + password with email confirmation required) and a small `useAuth` hook. Sign-in is needed for AI Review and AI Chat only — never to open the app or analyse images.
+- `AiPanel.tsx`: both AI tabs require a session; when signed out each shows a short "Sign in to use AI Review / AI Chat" CTA. Deterministic analysis, uploads, editing, blanks and exports stay fully usable signed out, and also when Cloud is down (clear availability message, no interference with analysis).
+- Header/AI panel shows `AI Reviews remaining: X / 5`, or `AI Reviews: Unlimited — Owner`, read from the server after each review. Display only; the server is authoritative.
+- Zero-credit and chat-limit responses render their exact messages above.
+- `ai-client.ts` attaches the bearer token and the client version header to both AI endpoints. AI Chat's prompt, model, streaming, parsing and conversational behaviour are otherwise untouched.
 
 ### 4. Version + provenance
 
-- `package.json` gains the authoritative `"version": "2.5"`. A tiny generated/imported constant re-exports that same value (`src/lib/app-version.ts` reading it from `package.json` at build time) so **no** second hard-coded "2.5" exists anywhere. Exports, the `client_version` sent to AI Review, and the desktop/Electron metadata in `scripts/package-windows.mjs` all read that one value.
+- `package.json` gains the authoritative `"version": "2.5"`. `src/lib/app-version.ts` re-exports that single value (read from `package.json`), so no second hard-coded "2.5" exists. Exports, the `client_version` sent to both AI endpoints, and the desktop/Electron metadata in `scripts/package-windows.mjs` all read it.
 - New `src/lib/analysis-run.ts`: `analysis_run_id` (`crypto.randomUUID()`) and `analysis_timestamp` (ISO-8601) generated once per completed analysis run and stored on the session — metadata only, never fed into any calculation or seed.
-- Exports gain three **appended trailing columns** on both CSVs: `microfluor_version`, `analysis_run_id`, `analysis_timestamp`. No header renames, no reordering, no metadata rows above the header, no change to any measurement value, unit, column meaning or numeric precision. AI Review report/summary text also carries the three fields.
+- Exports gain three **appended trailing columns** on both CSVs: `microfluor_version`, `analysis_run_id`, `analysis_timestamp`. No header renames, no reordering, no metadata rows above the header, no change to any measurement value, unit, column meaning or numeric precision. AI Review report/summary text carries the same three fields.
 - The version written is the client's own constant, so historical desktop builds never self-label as 2.5.
 
-### Explicit non-changes, and one honest caveat
+### Scientific freeze
 
-No change to particle detection, thresholding, calibration, measurements, circularity/shape-circularity, classification, blank handling, crops, QC or report math, CSV values/units/precision, the AI Review prompt, or the `openai/gpt-5` model. `/api/public/ai-decide` and `openai-vision.server.ts` stay inactive. No payments, no new features.
+Frozen for this change: segmentation, particle detection, thresholds, calibration, morphology, circularity/shape-circularity, Feret, aspect ratio, inclusion/exclusion, blank handling, preprocessing, enumeration, report/regression math, ImageJ comparison, the AI Review prompt, the AI Chat prompt, `openai/gpt-5` and its parameters. Auth, quotas, rate limiting, versioning and provenance stay entirely outside the scientific decision path. `/api/public/ai-decide` and `openai-vision.server.ts` remain inactive. No payments, no new models or modalities, no UI redesign, no unrelated refactoring.
 
-**AI Chat stays exactly as it is — which means `/api/public/ai-chat` remains a public, unauthenticated endpoint that anyone who knows the URL can call, billed to your Lovable AI credits.** This update protects AI Review only; AI Chat is still open and billable to you. We can protect it in a separate task.
+### Final access model
+
+| Surface | Signed out | Normal user | Owner/admin |
+|---|---|---|---|
+| Local analysis + exports | works | works | works |
+| AI Review | blocked pre-gateway | 5 free successful reviews | unlimited, no deduction |
+| AI Chat | blocked pre-gateway | 50 successful / rolling 24 h | unlimited |
+
+All owner requests are still logged for audit.
+
 
 
 ### Files touched
