@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import type { AnalysisSettings } from "@/lib/particle-analysis";
 import type { ImageEntry } from "@/lib/study-types";
 import { buildParticleCrops } from "@/lib/particle-crops";
 import { datasetDigest } from "@/lib/dataset-digest";
 import { isOnline, requestQc, streamChat, type AiReview } from "@/lib/ai-client";
+import { useAuth } from "@/hooks/useAuth";
+
 
 const BATCH = 12;
 
