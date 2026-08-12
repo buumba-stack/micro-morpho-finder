@@ -229,11 +229,44 @@ export function AiPanel({
         <span className="label-caps">GPT-5 · online only</span>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2 font-mono text-[11px]">
+        {authLoading ? (
+          <span className="text-muted-foreground">Checking AI account…</span>
+        ) : unavailable ? (
+          <span className="text-fibre">
+            AI account service unreachable — image analysis and exports still work offline.
+          </span>
+        ) : account ? (
+          <>
+            <span className="truncate text-muted-foreground">{account.email ?? account.userId}</span>
+            <span className={account.unlimited ? "text-sphere" : "text-accent"}>
+              {account.unlimited
+                ? "unlimited AI"
+                : `${credits ?? 0} AI review${(credits ?? 0) === 1 ? "" : "s"} left`}
+            </span>
+            <button className="btn-ghost ml-auto px-2 py-0.5" onClick={() => void signOut()}>
+              Sign out
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="text-accent">Sign in to use the AI features (5 free reviews).</span>
+            <Link to="/auth" className="btn-primary ml-auto px-2 py-0.5">
+              Sign in
+            </Link>
+            <button className="btn-ghost px-2 py-0.5" onClick={() => void refresh()}>
+              Refresh
+            </button>
+          </>
+        )}
+      </div>
+
       {error && (
         <p className="border-b border-border bg-fibre/10 px-3 py-2 font-mono text-[11px] text-fibre">
           {error}
         </p>
       )}
+
 
       {tab === "qc" ? (
         <div className="flex min-h-0 flex-col gap-2 p-3">
