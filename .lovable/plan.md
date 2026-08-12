@@ -53,22 +53,25 @@ Auth failure and validation failure both happen before reservation, so they can 
 
 ### 3. Frontend (minimal)
 
-- New `/auth` route (email + password sign-in/sign-up) and a small `useAuth` hook.
-- `AiPanel.tsx`: AI Review buttons require a session; when signed out show a short "Sign in to use AI Review" CTA. Deterministic analysis, uploads, editing, exports, AI Chat all stay usable signed out.
+- New `/auth` route (email + password with email confirmation required) and a small `useAuth` hook. Sign-in is needed for AI Review only — never to open the app or analyse images.
+- `AiPanel.tsx`: AI Review buttons require a session; when signed out show a short "Sign in to use AI Review" CTA. Deterministic analysis, uploads, editing, exports, AI Chat all stay usable signed out, and also when Cloud is down.
 - Header/AI panel shows `AI Reviews remaining: X / 5`, or `AI Reviews: Unlimited — Owner`, read from the server after each review. Display only.
 - Zero-credit response renders exactly: "You have used your 5 free AI Reviews. Standard MicroFluor analysis remains available. Additional AI Review credits may be available in a future version."
-- `ai-client.ts` attaches the bearer token and `X-MicroFluor-Client: MicroFluor/2.5` + `client_version` to AI Review requests only.
+- `ai-client.ts` attaches the bearer token and the client version header to AI Review requests only — AI Chat's request code is untouched.
 
 ### 4. Version + provenance
 
-- New single source of truth `src/lib/app-version.ts` exporting `MICROFLUOR_VERSION = "2.5"`; `package.json` `version` set to `2.5` and the packaging script reads it. Nothing else hard-codes the number.
+- `package.json` gains the authoritative `"version": "2.5"`. A tiny generated/imported constant re-exports that same value (`src/lib/app-version.ts` reading it from `package.json` at build time) so **no** second hard-coded "2.5" exists anywhere. Exports, the `client_version` sent to AI Review, and the desktop/Electron metadata in `scripts/package-windows.mjs` all read that one value.
 - New `src/lib/analysis-run.ts`: `analysis_run_id` (`crypto.randomUUID()`) and `analysis_timestamp` (ISO-8601) generated once per completed analysis run and stored on the session — metadata only, never fed into any calculation or seed.
-- Exports gain three **appended trailing columns** on both CSVs: `microfluor_version`, `analysis_run_id`, `analysis_timestamp`. No header renames, no reordering, no metadata rows above the header, no value/precision changes. AI Review report/summary text also carries the three fields.
+- Exports gain three **appended trailing columns** on both CSVs: `microfluor_version`, `analysis_run_id`, `analysis_timestamp`. No header renames, no reordering, no metadata rows above the header, no change to any measurement value, unit, column meaning or numeric precision. AI Review report/summary text also carries the three fields.
 - The version written is the client's own constant, so historical desktop builds never self-label as 2.5.
 
-### Explicit non-changes
+### Explicit non-changes, and one honest caveat
 
-No change to particle detection, thresholding, calibration, measurements, circularity/shape-circularity, classification, blank handling, crops, QC or report math, CSV values/units/precision, the AI Review prompt, or the `openai/gpt-5` model. AI Chat untouched. `/api/public/ai-decide` and `openai-vision.server.ts` stay inactive. No payments, no new features.
+No change to particle detection, thresholding, calibration, measurements, circularity/shape-circularity, classification, blank handling, crops, QC or report math, CSV values/units/precision, the AI Review prompt, or the `openai/gpt-5` model. `/api/public/ai-decide` and `openai-vision.server.ts` stay inactive. No payments, no new features.
+
+**AI Chat stays exactly as it is — which means `/api/public/ai-chat` remains a public, unauthenticated endpoint that anyone who knows the URL can call, billed to your Lovable AI credits.** This update protects AI Review only; AI Chat is still open and billable to you. We can protect it in a separate task.
+
 
 ### Files touched
 
