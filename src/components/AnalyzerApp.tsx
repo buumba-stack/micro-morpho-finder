@@ -111,6 +111,8 @@ export function AnalyzerApp() {
       analysis: current.draft.analysis,
       runSettings: current.draft.runSettings,
       analysisId: current.draft.analysisId,
+      run: current.draft.run,
+
       blankMatches: current.draft.blankMatches,
       blankKeep: [],
     };
