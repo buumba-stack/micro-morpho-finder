@@ -28,13 +28,14 @@ New tables:
 
 All tables: RLS on, explicit GRANTs, users can read only their own credit row, and **no** policy allows users to write their own credits — only server-side/service-role code adjusts balances.
 
-Owner identification: your account gets the `owner` role row seeded by migration keyed to your authenticated user id (you sign up once, then the role is granted server-side). Server checks `has_role(uid,'owner')`/`'admin'` — never any client-supplied flag.
+Owner identification and setup: you sign up (and confirm the email) once, then a migration/server-side grant inserts your `owner` role row keyed to your authenticated user id. Before rollout I verify the row exists in the database and run the owner test (more than 5 reviews, no deduction) **before** publishing. The server only ever checks `has_role(uid,'owner')` / `'admin'` — never a client-supplied flag, email or parameter. Any later backward-compatibility change must keep this role row and check intact.
 
-Atomic accounting — two security-definer SQL functions:
-- `reserve_ai_review_credit(_user_id)` — single conditional `UPDATE … SET credits_remaining = credits_remaining - 1 WHERE user_id = _user_id AND credits_remaining > 0 RETURNING credits_remaining`. The row lock plus `> 0` predicate makes concurrent last-credit spends impossible: exactly one wins.
-- `refund_ai_review_credit(_user_id)` — restores one credit, capped at `credits_granted`, used when the gateway/model call fails.
+Atomic accounting — reserve first, never decrement afterwards. Two security-definer SQL functions:
+- `reserve_ai_review_credit(_user_id)` — a single conditional `UPDATE … SET credits_remaining = credits_remaining - 1 WHERE user_id = _user_id AND credits_remaining > 0 RETURNING credits_remaining`. The reservation happens **before** the gateway is contacted, so a user with 1 credit cannot launch two paid gateway calls: the row lock plus the `> 0` predicate lets exactly one request win; the other is refused before any gateway traffic.
+- `release_ai_review_credit(_user_id)` — restores the reserved credit (capped at `credits_granted`) whenever the gateway or upstream model call fails, so failed calls never permanently consume a credit.
 
 Owner/admin path skips both functions entirely, so no balance can ever be decremented for you.
+
 
 ### 2. `/api/public/ai-qc` enforcement
 
