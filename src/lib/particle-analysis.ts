@@ -460,7 +460,12 @@ export function analyzeImageData(
       circularity,
       cxPx: sumX / count,
       cyPx: sumY / count,
-      morphology: classifyMorphology(aspectRatio, circularity, feret.max * scale, feret.min * scale),
+      morphology: classifyMorphology(
+        aspectRatio,
+        shapeCircularity,
+        feret.max * scale,
+        feret.min * scale,
+      ),
       touchesBorder,
       outline: Int16Array.from(outlinePts),
       rejected: false,
