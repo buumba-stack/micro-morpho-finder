@@ -87,5 +87,9 @@
     "typescript-eslint": "^8.56.1",
     "vite": "^8.1.5"
   },
-  "main": "electron/main.cjs"
+  "main": "electron/main.cjs",
+  "productName": "MicroFluor",
+  "author": "Buumba Hampuwo",
+  "license": "UNLICENSED",
+  "description": "MicroFluor"
 }
