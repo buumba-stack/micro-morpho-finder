@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "@tanstack/react-router";
+/**
+ * Sign-in target. The packaged desktop app runs from file:// with no router,
+ * so it opens the hosted auth page in the system browser instead.
+ */
+const isDesktopFile =
+  typeof window !== "undefined" && window.location.protocol === "file:";
+const authHref = isDesktopFile
+  ? "https://micro-morpho-finder.lovable.app/auth"
+  : "/auth";
+const authLinkProps = isDesktopFile
+  ? ({ target: "_blank", rel: "noreferrer" } as const)
+  : ({} as const);
 import type { AnalysisSettings } from "@/lib/particle-analysis";
 import type { ImageEntry } from "@/lib/study-types";
 import { buildParticleCrops } from "@/lib/particle-crops";
