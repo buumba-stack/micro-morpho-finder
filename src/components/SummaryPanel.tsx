@@ -35,11 +35,15 @@ function buildRows(entries: ImageEntry[]): ExportRow[] {
         circularity: p.circularity,
         morphology: p.morphology,
         status: p.rejected ? "rejected" : "accepted",
+        microfluorVersion: e.run?.microfluor_version ?? MICROFLUOR_VERSION,
+        analysisRunId: e.run?.analysis_run_id ?? "",
+        analysisTimestamp: e.run?.analysis_timestamp ?? "",
       });
     }
   }
   return rows;
 }
+
 
 export function SummaryPanel({ entries }: { entries: ImageEntry[] }) {
   const rows = useMemo(() => buildRows(entries), [entries]);
