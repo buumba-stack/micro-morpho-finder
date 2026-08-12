@@ -1,5 +1,6 @@
 import type { Morphology } from "./particle-analysis";
 import { MORPHOLOGIES } from "./particle-analysis";
+import { MICROFLUOR_VERSION } from "./app-version";
 
 export interface ExportRow {
   file: string;
@@ -16,6 +17,10 @@ export interface ExportRow {
   circularity: number;
   morphology: Morphology;
   status: "accepted" | "rejected";
+  /** provenance — metadata only, never used in any measurement */
+  microfluorVersion: string;
+  analysisRunId: string;
+  analysisTimestamp: string;
 }
 
 const num = (v: number, digits = 4) =>
@@ -41,6 +46,9 @@ export function particlesCsv(rows: ExportRow[]): string {
     "Circularity",
     "Morphology",
     "Status",
+    "microfluor_version",
+    "analysis_run_id",
+    "analysis_timestamp",
   ];
   const lines = rows.map((r) =>
     [
@@ -58,10 +66,14 @@ export function particlesCsv(rows: ExportRow[]): string {
       num(r.circularity, 4),
       r.morphology,
       r.status,
+      csvCell(r.microfluorVersion),
+      csvCell(r.analysisRunId),
+      csvCell(r.analysisTimestamp),
     ].join(","),
   );
   return [header.join(","), ...lines].join("\n");
 }
+
 
 export function summaryCsv(rows: ExportRow[], groupBy: "file" | "tissue"): string {
   const accepted = rows.filter((r) => r.status === "accepted");
