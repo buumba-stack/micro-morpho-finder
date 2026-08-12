@@ -14,7 +14,12 @@
 
 ### 1. Backend (Lovable Cloud)
 
-Enable Lovable Cloud (gives auth + Postgres). New tables:
+Cloud is added **only** as an access-control and accounting layer for AI Review. The auth client is loaded lazily and its failure is contained: if Cloud/auth is unreachable, the app still opens and the full local deterministic analysis (upload, detect, threshold, edit, blanks, exports) runs normally — only the AI Review buttons degrade to "AI Review unavailable — sign-in service unreachable". No analysis, viewer, export or session-store code path awaits a Cloud call.
+
+Email confirmation is required at signup (verified email is the anti-abuse floor for the 5 free credits); no other identity checks, no payments. Credits are only granted to a confirmed user.
+
+New tables:
+
 
 - `profiles` — `user_id`, `email`, `created_at` (created by trigger on signup).
 - `ai_review_credits` — `user_id` (PK), `credits_granted` (default 5), `credits_remaining` (default 5), `successful_reviews`, `created_at`, `updated_at`. Seeded with 5 by the same signup trigger.
@@ -23,19 +28,20 @@ Enable Lovable Cloud (gives auth + Postgres). New tables:
 
 All tables: RLS on, explicit GRANTs, users can read only their own credit row, and **no** policy allows users to write their own credits — only server-side/service-role code adjusts balances.
 
-Owner identification: your account gets the `owner` role row seeded by migration keyed to your authenticated user id (you sign up once, then the role is granted server-side). Server checks `has_role(uid,'owner')`/`'admin'` — never any client-supplied flag.
+Owner identification and setup: you sign up (and confirm the email) once, then a migration/server-side grant inserts your `owner` role row keyed to your authenticated user id. Before rollout I verify the row exists in the database and run the owner test (more than 5 reviews, no deduction) **before** publishing. The server only ever checks `has_role(uid,'owner')` / `'admin'` — never a client-supplied flag, email or parameter. Any later backward-compatibility change must keep this role row and check intact.
 
-Atomic accounting — two security-definer SQL functions:
-- `reserve_ai_review_credit(_user_id)` — single conditional `UPDATE … SET credits_remaining = credits_remaining - 1 WHERE user_id = _user_id AND credits_remaining > 0 RETURNING credits_remaining`. The row lock plus `> 0` predicate makes concurrent last-credit spends impossible: exactly one wins.
-- `refund_ai_review_credit(_user_id)` — restores one credit, capped at `credits_granted`, used when the gateway/model call fails.
+Atomic accounting — reserve first, never decrement afterwards. Two security-definer SQL functions:
+- `reserve_ai_review_credit(_user_id)` — a single conditional `UPDATE … SET credits_remaining = credits_remaining - 1 WHERE user_id = _user_id AND credits_remaining > 0 RETURNING credits_remaining`. The reservation happens **before** the gateway is contacted, so a user with 1 credit cannot launch two paid gateway calls: the row lock plus the `> 0` predicate lets exactly one request win; the other is refused before any gateway traffic.
+- `release_ai_review_credit(_user_id)` — restores the reserved credit (capped at `credits_granted`) whenever the gateway or upstream model call fails, so failed calls never permanently consume a credit.
 
 Owner/admin path skips both functions entirely, so no balance can ever be decremented for you.
+
 
 ### 2. `/api/public/ai-qc` enforcement
 
 Order inside the existing handler, before any gateway contact:
 
-1. Read `Authorization: Bearer <token>`; if absent → `401` with `{ code: "client_update_required", message: "AI Review requires MicroFluor v2.5 or later. Please update MicroFluor to continue using AI Review." }`.
+1. Read `Authorization: Bearer <token>`; if absent or unsupported (every pre-2.5 desktop client) → HTTP 401 with a machine-readable body, not a bare status: `{ "error": "client_update_required", "minimum_version": "2.5", "message": "AI Review requires MicroFluor v2.5 or later. Please update MicroFluor to continue using AI Review." }`. Old clients surface that message; their offline local analysis is untouched and keeps working.
 2. Validate the token server-side to get the real user id (ignore any user id/role/email in the body).
 3. `has_role(owner|admin)` → allowed, no reservation.
 4. Normal user → `reserve_ai_review_credit`; if it returns no row → `402` with the quota message, and the gateway is never called.
@@ -47,22 +53,25 @@ Auth failure and validation failure both happen before reservation, so they can 
 
 ### 3. Frontend (minimal)
 
-- New `/auth` route (email + password sign-in/sign-up) and a small `useAuth` hook.
-- `AiPanel.tsx`: AI Review buttons require a session; when signed out show a short "Sign in to use AI Review" CTA. Deterministic analysis, uploads, editing, exports, AI Chat all stay usable signed out.
+- New `/auth` route (email + password with email confirmation required) and a small `useAuth` hook. Sign-in is needed for AI Review only — never to open the app or analyse images.
+- `AiPanel.tsx`: AI Review buttons require a session; when signed out show a short "Sign in to use AI Review" CTA. Deterministic analysis, uploads, editing, exports, AI Chat all stay usable signed out, and also when Cloud is down.
 - Header/AI panel shows `AI Reviews remaining: X / 5`, or `AI Reviews: Unlimited — Owner`, read from the server after each review. Display only.
 - Zero-credit response renders exactly: "You have used your 5 free AI Reviews. Standard MicroFluor analysis remains available. Additional AI Review credits may be available in a future version."
-- `ai-client.ts` attaches the bearer token and `X-MicroFluor-Client: MicroFluor/2.5` + `client_version` to AI Review requests only.
+- `ai-client.ts` attaches the bearer token and the client version header to AI Review requests only — AI Chat's request code is untouched.
 
 ### 4. Version + provenance
 
-- New single source of truth `src/lib/app-version.ts` exporting `MICROFLUOR_VERSION = "2.5"`; `package.json` `version` set to `2.5` and the packaging script reads it. Nothing else hard-codes the number.
+- `package.json` gains the authoritative `"version": "2.5"`. A tiny generated/imported constant re-exports that same value (`src/lib/app-version.ts` reading it from `package.json` at build time) so **no** second hard-coded "2.5" exists anywhere. Exports, the `client_version` sent to AI Review, and the desktop/Electron metadata in `scripts/package-windows.mjs` all read that one value.
 - New `src/lib/analysis-run.ts`: `analysis_run_id` (`crypto.randomUUID()`) and `analysis_timestamp` (ISO-8601) generated once per completed analysis run and stored on the session — metadata only, never fed into any calculation or seed.
-- Exports gain three **appended trailing columns** on both CSVs: `microfluor_version`, `analysis_run_id`, `analysis_timestamp`. No header renames, no reordering, no metadata rows above the header, no value/precision changes. AI Review report/summary text also carries the three fields.
+- Exports gain three **appended trailing columns** on both CSVs: `microfluor_version`, `analysis_run_id`, `analysis_timestamp`. No header renames, no reordering, no metadata rows above the header, no change to any measurement value, unit, column meaning or numeric precision. AI Review report/summary text also carries the three fields.
 - The version written is the client's own constant, so historical desktop builds never self-label as 2.5.
 
-### Explicit non-changes
+### Explicit non-changes, and one honest caveat
 
-No change to particle detection, thresholding, calibration, measurements, circularity/shape-circularity, classification, blank handling, crops, QC or report math, CSV values/units/precision, the AI Review prompt, or the `openai/gpt-5` model. AI Chat untouched. `/api/public/ai-decide` and `openai-vision.server.ts` stay inactive. No payments, no new features.
+No change to particle detection, thresholding, calibration, measurements, circularity/shape-circularity, classification, blank handling, crops, QC or report math, CSV values/units/precision, the AI Review prompt, or the `openai/gpt-5` model. `/api/public/ai-decide` and `openai-vision.server.ts` stay inactive. No payments, no new features.
+
+**AI Chat stays exactly as it is — which means `/api/public/ai-chat` remains a public, unauthenticated endpoint that anyone who knows the URL can call, billed to your Lovable AI credits.** This update protects AI Review only; AI Chat is still open and billable to you. We can protect it in a separate task.
+
 
 ### Files touched
 
@@ -71,4 +80,4 @@ New: `src/lib/app-version.ts`, `src/lib/analysis-run.ts`, `src/lib/ai-quota.serv
 
 ### Tests after implementation
 
-Quota sequence 5→0 and blocked 6th (no gateway call), simulated upstream failure leaves balance unchanged, persistence across refresh/logout/login, unauthenticated curl rejected, frontend tampering ineffective, spoofed user id/admin flag ignored, concurrent last-credit double-spend prevented, owner unlimited past 6/10+ reviews with zero deduction, scientific regression on existing micrographs (counts, measurements, morphology, thresholds identical), and export verification.
+Owner role row verified in the database before rollout, then owner unlimited past 6/10+ reviews with zero deduction. Quota sequence 5→0 and blocked 6th (no gateway call), simulated upstream failure leaves balance unchanged, persistence across refresh/logout/login, unauthenticated curl gets `client_update_required`, frontend tampering ineffective, spoofed user id/admin flag ignored, concurrent last-credit double-spend prevented, app opens and analyses normally with Cloud unreachable, scientific regression on existing micrographs (counts, measurements, morphology, thresholds identical), and export verification.
