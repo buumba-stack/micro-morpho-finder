@@ -1,11 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { GatewayError, collectText, openResponsesStream, GPT5_MODEL } from "@/lib/gpt5.server";
 import {
-  CORS_HEADERS,
-  GatewayError,
-  collectText,
-  openResponsesStream,
-} from "@/lib/gpt5.server";
+  AI_CORS_HEADERS as CORS_HEADERS,
+  authenticateAiRequest,
+  clientUpdateRequired,
+  commitReviewSuccess,
+  logReviewAttempt,
+  quotaExhausted,
+  releaseReviewCredit,
+  reserveReviewCredit,
+} from "@/lib/ai-quota.server";
+
 
 const ParticleSchema = z.object({
   id: z.number(),
