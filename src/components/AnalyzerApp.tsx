@@ -166,6 +166,7 @@ export function AnalyzerApp() {
           blanks.library,
         );
         const analysisId = `${Date.now()}`;
+        const run = newAnalysisRun();
         setEntries((prev) =>
           prev.map((e) =>
             e.id === entry.id
@@ -179,6 +180,7 @@ export function AnalyzerApp() {
                       runSettings: { ...settings },
                       analysisId,
                       blankMatches,
+                      run,
                       createdAt: new Date().toISOString(),
                     },
                   }
@@ -188,6 +190,7 @@ export function AnalyzerApp() {
                     analysis,
                     runSettings: { ...settings },
                     analysisId,
+                    run,
                     blankMatches,
                     blankKeep: [],
                     draft: undefined,
@@ -196,6 +199,7 @@ export function AnalyzerApp() {
               : e,
           ),
         );
+
       } catch (err) {
         setEntries((prev) =>
           prev.map((e) =>
