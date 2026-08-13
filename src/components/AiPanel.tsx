@@ -17,6 +17,7 @@ import { buildParticleCrops } from "@/lib/particle-crops";
 import { datasetDigest } from "@/lib/dataset-digest";
 import { isOnline, requestQc, streamChat, type AiReview } from "@/lib/ai-client";
 import { useAuth } from "@/hooks/useAuth";
+import { OwnerSignIn } from "@/components/OwnerSignIn";
 import {
   endReviewerSession,
   getReviewerSession,
@@ -305,10 +306,18 @@ export function AiPanel({
               </span>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-accent">Sign in to use the AI features (5 free reviews).</span>
-                <a href={authHref} {...authLinkProps} className="btn-primary ml-auto px-2 py-0.5">
-                  Sign in
-                </a>
+                {isDesktopFile ? (
+                  <OwnerSignIn onSignedIn={() => void refresh()} />
+                ) : (
+                  <>
+                    <span className="text-accent">
+                      Sign in to use the AI features (5 free reviews).
+                    </span>
+                    <a href={authHref} {...authLinkProps} className="btn-primary ml-auto px-2 py-0.5">
+                      Sign in
+                    </a>
+                  </>
+                )}
                 <button className="btn-ghost px-2 py-0.5" onClick={() => void refresh()}>
                   Refresh
                 </button>
