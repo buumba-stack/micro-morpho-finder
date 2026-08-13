@@ -59,7 +59,7 @@ export function AiPanel({
   const [credits, setCredits] = useState<number | null>(null);
   /** anonymous reviewer session (shared access key) — identity-free */
   const [reviewerUntil, setReviewerUntil] = useState<string | null>(
-    () => getReviewerSession()?.expiresAt ?? null,
+    () => (IS_DESKTOP ? null : (getReviewerSession()?.expiresAt ?? null)),
   );
   const [reviewerKey, setReviewerKey] = useState("");
   const [reviewerBusy, setReviewerBusy] = useState(false);
@@ -280,7 +280,7 @@ export function AiPanel({
               Sign out
             </button>
           </>
-        ) : reviewerUntil ? (
+        ) : !IS_DESKTOP && reviewerUntil ? (
           <>
             <span className="text-sphere">Reviewer access</span>
             <span className="text-muted-foreground">Local memory</span>
@@ -313,29 +313,33 @@ export function AiPanel({
                 </button>
               </div>
             )}
-            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
-              <span className="label-caps">or reviewer / authorized access</span>
-              <input
-                className="field field-focus w-56 px-2 py-0.5"
-                type="password"
-                autoComplete="off"
-                placeholder="Access key"
-                value={reviewerKey}
-                onChange={(e) => setReviewerKey(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && reviewerKey.trim() && !reviewerBusy)
-                    void submitReviewerKey();
-                }}
-              />
-              <button
-                className="btn-primary px-2 py-0.5"
-                disabled={reviewerBusy || reviewerKey.trim().length < 8}
-                onClick={() => void submitReviewerKey()}
-              >
-                {reviewerBusy ? "Checking…" : "Continue"}
-              </button>
-            </div>
-            {reviewerError && <span className="text-fibre">{reviewerError}</span>}
+            {!IS_DESKTOP && (
+              <>
+                <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
+                  <span className="label-caps">or reviewer / authorized access</span>
+                  <input
+                    className="field field-focus w-56 px-2 py-0.5"
+                    type="password"
+                    autoComplete="off"
+                    placeholder="Access key"
+                    value={reviewerKey}
+                    onChange={(e) => setReviewerKey(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && reviewerKey.trim() && !reviewerBusy)
+                        void submitReviewerKey();
+                    }}
+                  />
+                  <button
+                    className="btn-primary px-2 py-0.5"
+                    disabled={reviewerBusy || reviewerKey.trim().length < 8}
+                    onClick={() => void submitReviewerKey()}
+                  >
+                    {reviewerBusy ? "Checking…" : "Continue"}
+                  </button>
+                </div>
+                {reviewerError && <span className="text-fibre">{reviewerError}</span>}
+              </>
+            )}
           </div>
         )}
 

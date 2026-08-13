@@ -34,28 +34,32 @@ export function OwnerSignIn({ onSignedIn }: { onSignedIn: () => void }) {
   };
 
   return (
-    <form className="flex w-full flex-wrap items-center gap-2" onSubmit={submit}>
-      <span className="text-accent">Sign in to your MicroFluor account for AI and cloud sync.</span>
-      <input
-        className="field field-focus w-48 px-2 py-0.5"
-        type="email"
-        required
-        autoComplete="email"
-        placeholder="you@lab.edu"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      <input
-        className="field field-focus w-40 px-2 py-0.5"
-        type="password"
-        required
-        minLength={8}
-        autoComplete="current-password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-      <button className="btn-primary px-2 py-0.5" type="submit" disabled={busy}>
+    <form className="flex w-full flex-col gap-2" onSubmit={submit}>
+      <span className="font-sans text-sm font-semibold text-foreground">MicroFluor account</span>
+      <label className="flex flex-col gap-1 text-muted-foreground">
+        <span>Email</span>
+        <input
+          className="field field-focus w-full px-2 py-1"
+          type="email"
+          required
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+      </label>
+      <label className="flex flex-col gap-1 text-muted-foreground">
+        <span>Password</span>
+        <input
+          className="field field-focus w-full px-2 py-1"
+          type="password"
+          required
+          minLength={8}
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </label>
+      <button className="btn-primary self-start px-3 py-1" type="submit" disabled={busy}>
         {busy ? "Signing in…" : "Sign in"}
       </button>
       {error && <span className="text-fibre">{error}</span>}
