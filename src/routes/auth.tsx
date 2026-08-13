@@ -4,8 +4,15 @@ import { getAuthClient, useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
 import { MICROFLUOR_VERSION } from "@/lib/app-version";
 
-const DESC =
-  "Sign in to MicroFluor to use the GPT-5 AI review and dataset chat. Local particle analysis works without an account.";
+declare const __MICROFLUOR_PREPUBLICATION__: boolean | undefined;
+const PREPUB =
+  typeof __MICROFLUOR_PREPUBLICATION__ === "boolean" ? __MICROFLUOR_PREPUBLICATION__ : true;
+
+// Pre-publication mode keeps /auth working as the desktop sign-in bridge but
+// avoids describing unpublished functionality.
+const DESC = PREPUB
+  ? "Account sign-in for MicroFluor research software."
+  : "Sign in to MicroFluor to use the GPT-5 AI review and dataset chat. Local particle analysis works without an account.";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -89,11 +96,11 @@ function AuthPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-4 p-6">
       <header className="flex flex-col gap-1">
-        <h1 className="text-lg font-semibold">MicroFluor AI access</h1>
+        <h1 className="text-lg font-semibold">MicroFluor account</h1>
         <p className="text-xs leading-snug text-muted-foreground">
-          An account is required only for AI review and dataset chat. Image analysis, editing,
-          blanks and exports run entirely on your machine without signing in. New accounts include 5
-          free AI reviews.
+          {PREPUB
+            ? "Sign in to link your MicroFluor research software account. The web application is not publicly available during pre-publication."
+            : "An account is required only for AI review and dataset chat. Image analysis, editing, blanks and exports run entirely on your machine without signing in. New accounts include 5 free AI reviews."}
         </p>
       </header>
 
