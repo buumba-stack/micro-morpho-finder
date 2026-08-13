@@ -7,13 +7,10 @@
  */
 import { CLIENT_VERSION_HEADER, MICROFLUOR_VERSION } from "./app-version";
 import { getAccessToken } from "@/hooks/useAuth";
+import { getReviewerSession } from "@/lib/reviewer-session";
+import { aiBaseUrl } from "@/lib/ai-client-base";
 
-const HOSTED_BASE = "https://project--7c28e508-642b-4ca7-9872-79dbf40d3aff.lovable.app";
-
-export function aiBaseUrl(): string {
-  if (typeof window === "undefined") return "";
-  return window.location.protocol.startsWith("http") ? "" : HOSTED_BASE;
-}
+export { aiBaseUrl };
 
 export function isOnline(): boolean {
   return typeof navigator === "undefined" ? true : navigator.onLine !== false;
@@ -52,11 +49,13 @@ function parseError(status: number, text: string): AiRequestError {
 }
 
 async function aiHeaders(): Promise<Record<string, string>> {
-  const token = await getAccessToken();
+  // A normal account session takes priority; otherwise an active anonymous
+  // reviewer token is used. Both are plain bearer tokens to the server.
+  const token = (await getAccessToken()) ?? getReviewerSession()?.token ?? null;
   if (!token) {
     throw new AiRequestError(
       401,
-      "Sign in to MicroFluor to use the AI features.",
+      "Sign in to MicroFluor, or enter a reviewer access key, to use the AI features.",
       "not_signed_in",
     );
   }
