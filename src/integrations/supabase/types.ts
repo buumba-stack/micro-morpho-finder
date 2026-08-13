@@ -226,6 +226,7 @@ export type Database = {
           created_at: string
           family_id: string
           id: string
+          import_fingerprint: string | null
           manually_confirmed: boolean
           notes: string | null
           particle_features: Json
@@ -242,6 +243,7 @@ export type Database = {
           created_at?: string
           family_id: string
           id?: string
+          import_fingerprint?: string | null
           manually_confirmed?: boolean
           notes?: string | null
           particle_features?: Json
@@ -258,6 +260,7 @@ export type Database = {
           created_at?: string
           family_id?: string
           id?: string
+          import_fingerprint?: string | null
           manually_confirmed?: boolean
           notes?: string | null
           particle_features?: Json
@@ -290,12 +293,19 @@ export type Database = {
         Row: {
           batch_id: string | null
           contaminant_family_id: string | null
+          contaminant_family_id_snapshot: string | null
+          contaminant_family_name_snapshot: string | null
+          contaminant_scope: string | null
           created_at: string
           decision: string
           decision_source: string
+          exclusion_reason: string | null
           id: string
+          match_method: string | null
+          matcher_version: string | null
           particle_features: Json | null
           particle_id: string | null
+          procedural_blank_support: number | null
           proposed_confidence: number | null
           proposed_prediction: string | null
           source_image_id: string | null
@@ -305,12 +315,19 @@ export type Database = {
         Insert: {
           batch_id?: string | null
           contaminant_family_id?: string | null
+          contaminant_family_id_snapshot?: string | null
+          contaminant_family_name_snapshot?: string | null
+          contaminant_scope?: string | null
           created_at?: string
           decision: string
           decision_source?: string
+          exclusion_reason?: string | null
           id?: string
+          match_method?: string | null
+          matcher_version?: string | null
           particle_features?: Json | null
           particle_id?: string | null
+          procedural_blank_support?: number | null
           proposed_confidence?: number | null
           proposed_prediction?: string | null
           source_image_id?: string | null
@@ -320,12 +337,19 @@ export type Database = {
         Update: {
           batch_id?: string | null
           contaminant_family_id?: string | null
+          contaminant_family_id_snapshot?: string | null
+          contaminant_family_name_snapshot?: string | null
+          contaminant_scope?: string | null
           created_at?: string
           decision?: string
           decision_source?: string
+          exclusion_reason?: string | null
           id?: string
+          match_method?: string | null
+          matcher_version?: string | null
           particle_features?: Json | null
           particle_id?: string | null
+          procedural_blank_support?: number | null
           proposed_confidence?: number | null
           proposed_prediction?: string | null
           source_image_id?: string | null
@@ -354,6 +378,7 @@ export type Database = {
           batch_id: string | null
           confidence: number | null
           contaminant_family_id: string | null
+          contaminant_family_name_snapshot: string | null
           created_at: string
           details: Json | null
           id: string
@@ -369,6 +394,7 @@ export type Database = {
           batch_id?: string | null
           confidence?: number | null
           contaminant_family_id?: string | null
+          contaminant_family_name_snapshot?: string | null
           created_at?: string
           details?: Json | null
           id?: string
@@ -384,6 +410,7 @@ export type Database = {
           batch_id?: string | null
           confidence?: number | null
           contaminant_family_id?: string | null
+          contaminant_family_name_snapshot?: string | null
           created_at?: string
           details?: Json | null
           id?: string

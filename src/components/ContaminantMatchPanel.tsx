@@ -10,6 +10,8 @@ interface Props {
   onExclude: (id: number) => void;
   onKeep: (id: number) => void;
   onMark: (id: number) => void;
+  /** user-initiated bulk exclusion of high-confidence matches */
+  onExcludeAllHighConfidence: () => void;
 }
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -51,11 +53,14 @@ export function ContaminantMatchPanel({
   onExclude,
   onKeep,
   onMark,
+  onExcludeAllHighConfidence,
 }: Props) {
   const flagged = useMemo(() => {
     const map = entry?.contaminantMatches ?? {};
     return Object.values(map).sort((a, b) => b.similarity - a.similarity);
   }, [entry?.contaminantMatches]);
+
+  const highConfidenceCount = flagged.filter((m) => m.highConfidence).length;
 
   if (!entry) return null;
   const active = flagged.find((m) => m.particleId === selectedId);
@@ -68,6 +73,12 @@ export function ContaminantMatchPanel({
         <span className="label-caps">
           {flagged.length} particle{flagged.length === 1 ? "" : "s"} resemble known contaminants
         </span>
+        {highConfidenceCount > 0 && (
+          <button className="btn-ghost px-2 py-1" onClick={onExcludeAllHighConfidence}>
+            Exclude {highConfidenceCount} high-confidence match
+            {highConfidenceCount === 1 ? "" : "es"}
+          </button>
+        )}
         {particle && (
           <button className="btn-ghost px-2 py-1" onClick={() => onMark(particle.id)}>
             Mark #{particle.id} as contaminant

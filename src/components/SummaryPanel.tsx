@@ -17,7 +17,16 @@ const MORPH_CLASS: Record<string, string> = {
   fragment: "text-fragment",
 };
 
-function buildRows(entries: ImageEntry[]): ExportRow[] {
+function buildRows(entries: ImageEntry[], decisions: ParticleDecisionRow[]): ExportRow[] {
+  // latest recorded human decision per image+particle — the audit truth
+  const byParticle = new Map<string, ParticleDecisionRow>();
+  for (const d of decisions) {
+    if (d.particle_id === null) continue;
+    const key = `${d.source_image_id ?? ""}#${d.particle_id}`;
+    const seen = byParticle.get(key);
+    if (!seen || seen.created_at < d.created_at) byParticle.set(key, d);
+  }
+
   const rows: ExportRow[] = [];
   for (const e of entries) {
     if (!e.analysis) continue;
@@ -25,18 +34,19 @@ function buildRows(entries: ImageEntry[]): ExportRow[] {
     for (const p of e.analysis.particles) {
       const contaminant = e.contaminantMatches?.[p.id]?.matches[0];
       const blank = e.blankMatches?.[p.id];
-      const exclusionReason = !p.rejected
-        ? ""
-        : contaminant
-          ? "contaminant_family_match"
-          : blank
-            ? "procedural_blank_match"
-            : "manual_review";
-      const decisionSource = p.rejected
-        ? "manual_review"
-        : kept.has(p.id)
-          ? "manual_keep_despite_match"
-          : "";
+      const decision = byParticle.get(`${e.id}#${p.id}`);
+      const exclusionReason = decision?.exclusion_reason
+        ? decision.exclusion_reason
+        : !p.rejected
+          ? ""
+          : contaminant
+            ? "contaminant_family_match"
+            : blank
+              ? "procedural_blank_match"
+              : "manual_review";
+      const decisionSource =
+        decision?.decision_source ??
+        (p.rejected ? "manual_review" : kept.has(p.id) ? "manual_keep_despite_match" : "");
       rows.push({
         file: e.name,
         tissue: e.tissue,
@@ -55,12 +65,22 @@ function buildRows(entries: ImageEntry[]): ExportRow[] {
         microfluorVersion: e.run?.microfluor_version ?? MICROFLUOR_VERSION,
         analysisRunId: e.run?.analysis_run_id ?? "",
         analysisTimestamp: e.run?.analysis_timestamp ?? "",
-        contaminantFamily: contaminant?.familyName ?? "",
-        contaminantFamilyId: contaminant?.familyId ?? "",
-        contaminantScope: contaminant?.scope ?? "",
-        contaminantMatchScore: contaminant ? contaminant.similarity : null,
+        contaminantFamily:
+          contaminant?.familyName ?? decision?.contaminant_family_name_snapshot ?? "",
+        contaminantFamilyId:
+          contaminant?.familyId ?? decision?.contaminant_family_id_snapshot ?? "",
+        contaminantScope: contaminant?.scope ?? decision?.contaminant_scope ?? "",
+        contaminantMatchScore: contaminant
+          ? contaminant.similarity
+          : (decision?.proposed_confidence ?? null),
         exclusionReason,
         decisionSource,
+        matchMethod: decision?.match_method ?? (contaminant ? CONTAMINANT_MATCH_METHOD : ""),
+        matcherVersion:
+          decision?.matcher_version ?? (contaminant ? CONTAMINANT_MATCHER_VERSION : ""),
+        humanDecision: decision?.decision ?? "",
+        proceduralBlankSupport:
+          contaminant?.blankObservations ?? decision?.procedural_blank_support ?? null,
       });
     }
   }
@@ -68,8 +88,14 @@ function buildRows(entries: ImageEntry[]): ExportRow[] {
 }
 
 
-export function SummaryPanel({ entries }: { entries: ImageEntry[] }) {
-  const rows = useMemo(() => buildRows(entries), [entries]);
+export function SummaryPanel({
+  entries,
+  decisions = [],
+}: {
+  entries: ImageEntry[];
+  decisions?: ParticleDecisionRow[];
+}) {
+  const rows = useMemo(() => buildRows(entries, decisions), [entries, decisions]);
   const accepted = rows.filter((r) => r.status === "accepted");
 
   const tissues = useMemo(() => {

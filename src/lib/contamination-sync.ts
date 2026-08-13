@@ -35,6 +35,28 @@ export interface SyncResult {
   error: string | null;
 }
 
+/**
+ * Newest-wins merge on `updated_at`. A stale remote copy can never overwrite a
+ * more recent local human edit, and unsynced local rows are always preserved.
+ */
+function mergeNewest<T extends { id: string; updated_at: string; synced: boolean }>(
+  localRows: T[],
+  remoteRows: T[],
+): T[] {
+  const byId = new Map<string, T>();
+  for (const r of remoteRows) byId.set(r.id, r);
+  for (const l of localRows) {
+    const remote = byId.get(l.id);
+    if (!remote) {
+      // never drop a row that has not reached the account database yet
+      if (!l.synced) byId.set(l.id, l);
+      continue;
+    }
+    if (!l.synced && l.updated_at > remote.updated_at) byId.set(l.id, l);
+  }
+  return [...byId.values()].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
+}
+
 /** Pushes unsynced rows, then replaces local rows with the account copy. */
 export async function syncMemory(local: MemoryState): Promise<SyncResult> {
   const client = await getAuthClient();
@@ -69,6 +91,7 @@ export async function syncMemory(local: MemoryState): Promise<SyncResult> {
           threshold: b.threshold,
           status: b.status,
           created_at: b.created_at,
+          updated_at: b.updated_at,
         })),
       );
       if (error) throw error;
@@ -89,6 +112,7 @@ export async function syncMemory(local: MemoryState): Promise<SyncResult> {
           status: f.status,
           notes: f.notes,
           created_at: f.created_at,
+          updated_at: f.updated_at,
         })),
       );
       if (error) throw error;
@@ -96,6 +120,8 @@ export async function syncMemory(local: MemoryState): Promise<SyncResult> {
 
     const observations = local.observations.filter((r) => !r.synced);
     if (observations.length) {
+      // `import_fingerprint` carries a unique constraint per account, so a second
+      // device importing the same blank candidate cannot create a duplicate row.
       const { error } = await client.from("contaminant_observations").upsert(
         observations.map((o) => ({
           id: o.id,
@@ -111,8 +137,10 @@ export async function syncMemory(local: MemoryState): Promise<SyncResult> {
           particle_features: o.particle_features,
           manually_confirmed: o.manually_confirmed,
           notes: o.notes,
+          import_fingerprint: o.import_fingerprint,
           created_at: o.created_at,
         })),
+        { ignoreDuplicates: true },
       );
       if (error) throw error;
     }
@@ -133,11 +161,19 @@ export async function syncMemory(local: MemoryState): Promise<SyncResult> {
           decision: d.decision,
           decision_source: d.decision_source,
           particle_features: d.particle_features,
+          contaminant_family_id_snapshot: d.contaminant_family_id_snapshot,
+          contaminant_family_name_snapshot: d.contaminant_family_name_snapshot,
+          contaminant_scope: d.contaminant_scope,
+          match_method: d.match_method,
+          matcher_version: d.matcher_version,
+          exclusion_reason: d.exclusion_reason,
+          procedural_blank_support: d.procedural_blank_support,
           created_at: d.created_at,
         })),
       );
       if (error) throw error;
     }
+
 
     const predictions = local.predictions.filter((r) => !r.synced);
     if (predictions.length) {
@@ -178,63 +214,78 @@ export async function syncMemory(local: MemoryState): Promise<SyncResult> {
     ]);
     for (const res of [b, f, o, d, p]) if (res.error) throw res.error;
 
+    const remoteBatches = (b.data ?? []).map(
+      (r): AnalysisBatch => ({
+        id: r.id,
+        name: r.name,
+        analysis_date: r.analysis_date,
+        tissue: r.tissue,
+        protocol: r.protocol,
+        solution: r.solution,
+        microscope: r.microscope,
+        objective: r.objective,
+        acquisition_profile: r.acquisition_profile,
+        um_per_px: r.um_per_px,
+        threshold: r.threshold,
+        status: r.status,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        synced: true,
+      }),
+    );
+    const remoteFamilies = (f.data ?? []).map(
+      (r): ContaminantFamily => ({
+        id: r.id,
+        name: r.name,
+        contaminant_type: r.contaminant_type as ContaminantType,
+        scope: r.scope as ContaminantScope,
+        batch_id: r.batch_id,
+        tissue: r.tissue,
+        protocol: r.protocol,
+        status: r.status as FamilyStatus,
+        notes: r.notes,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        synced: true,
+      }),
+    );
+
+    const remoteObservations = (o.data ?? []).map(
+      (r): ContaminantObservation => ({
+        id: r.id,
+        family_id: r.family_id,
+        batch_id: r.batch_id,
+        source_type: r.source_type as SourceType,
+        particle_id: r.particle_id,
+        source_image_id: r.source_image_id,
+        source_image_name: r.source_image_name,
+        tissue: r.tissue,
+        protocol: r.protocol,
+        particle_features: asFeatures(r.particle_features),
+        manually_confirmed: r.manually_confirmed,
+        notes: r.notes,
+        import_fingerprint: r.import_fingerprint ?? null,
+        created_at: r.created_at,
+        synced: true,
+      }),
+    );
+
     const state: MemoryState = {
       version: local.version + 1,
       activeBatchId: local.activeBatchId,
-      importedBlankCandidates: local.importedBlankCandidates,
-      batches: (b.data ?? []).map(
-        (r): AnalysisBatch => ({
-          id: r.id,
-          name: r.name,
-          analysis_date: r.analysis_date,
-          tissue: r.tissue,
-          protocol: r.protocol,
-          solution: r.solution,
-          microscope: r.microscope,
-          objective: r.objective,
-          acquisition_profile: r.acquisition_profile,
-          um_per_px: r.um_per_px,
-          threshold: r.threshold,
-          status: r.status,
-          created_at: r.created_at,
-          updated_at: r.updated_at,
-          synced: true,
-        }),
-      ),
-      families: (f.data ?? []).map(
-        (r): ContaminantFamily => ({
-          id: r.id,
-          name: r.name,
-          contaminant_type: r.contaminant_type as ContaminantType,
-          scope: r.scope as ContaminantScope,
-          batch_id: r.batch_id,
-          tissue: r.tissue,
-          protocol: r.protocol,
-          status: r.status as FamilyStatus,
-          notes: r.notes,
-          created_at: r.created_at,
-          updated_at: r.updated_at,
-          synced: true,
-        }),
-      ),
-      observations: (o.data ?? []).map(
-        (r): ContaminantObservation => ({
-          id: r.id,
-          family_id: r.family_id,
-          batch_id: r.batch_id,
-          source_type: r.source_type as SourceType,
-          particle_id: r.particle_id,
-          source_image_id: r.source_image_id,
-          source_image_name: r.source_image_name,
-          tissue: r.tissue,
-          protocol: r.protocol,
-          particle_features: asFeatures(r.particle_features),
-          manually_confirmed: r.manually_confirmed,
-          notes: r.notes,
-          created_at: r.created_at,
-          synced: true,
-        }),
-      ),
+      // keep every fingerprint either side already knows, so a re-import on a
+      // second device cannot silently duplicate the same blank observation
+      importedBlankCandidates: [
+        ...new Set([
+          ...local.importedBlankCandidates,
+          ...remoteObservations
+            .map((r) => r.import_fingerprint)
+            .filter((v): v is string => !!v),
+        ]),
+      ],
+      batches: mergeNewest(local.batches, remoteBatches),
+      families: mergeNewest(local.families, remoteFamilies),
+      observations: remoteObservations,
       decisions: (d.data ?? []).map(
         (r): ParticleDecisionRow => ({
           id: r.id,
@@ -248,6 +299,13 @@ export async function syncMemory(local: MemoryState): Promise<SyncResult> {
           decision: r.decision as ParticleDecision,
           decision_source: r.decision_source,
           particle_features: r.particle_features ? asFeatures(r.particle_features) : null,
+          contaminant_family_id_snapshot: r.contaminant_family_id_snapshot ?? null,
+          contaminant_family_name_snapshot: r.contaminant_family_name_snapshot ?? null,
+          contaminant_scope: r.contaminant_scope ?? null,
+          match_method: r.match_method ?? null,
+          matcher_version: r.matcher_version ?? null,
+          exclusion_reason: r.exclusion_reason ?? null,
+          procedural_blank_support: r.procedural_blank_support ?? null,
           created_at: r.created_at,
           synced: true,
         }),
