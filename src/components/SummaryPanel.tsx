@@ -8,6 +8,11 @@ import {
   type ExportRow,
 } from "@/lib/export-results";
 import { MICROFLUOR_VERSION } from "@/lib/app-version";
+import type { ParticleDecisionRow } from "@/lib/contamination-memory";
+import {
+  CONTAMINANT_MATCHER_VERSION,
+  CONTAMINANT_MATCH_METHOD,
+} from "@/lib/contaminant-matching";
 
 
 const MORPH_CLASS: Record<string, string> = {
