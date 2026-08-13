@@ -1,16 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-/**
- * Sign-in target. The packaged desktop app runs from file:// with no router,
- * so it opens the hosted auth page in the system browser instead.
- */
-const isDesktopFile =
-  typeof window !== "undefined" && window.location.protocol === "file:";
-const authHref = isDesktopFile
-  ? "https://micro-morpho-finder.lovable.app/auth"
-  : "/auth";
-const authLinkProps = isDesktopFile
-  ? ({ target: "_blank", rel: "noreferrer" } as const)
-  : ({} as const);
 import type { AnalysisSettings } from "@/lib/particle-analysis";
 import type { ImageEntry } from "@/lib/study-types";
 import { buildParticleCrops } from "@/lib/particle-crops";
@@ -24,6 +12,10 @@ import {
   startReviewerSession,
 } from "@/lib/reviewer-session";
 
+declare const __MICROFLUOR_DESKTOP__: boolean | undefined;
+
+const IS_DESKTOP =
+  typeof __MICROFLUOR_DESKTOP__ === "boolean" ? __MICROFLUOR_DESKTOP__ : false;
 
 const BATCH = 12;
 
@@ -67,7 +59,7 @@ export function AiPanel({
   const [credits, setCredits] = useState<number | null>(null);
   /** anonymous reviewer session (shared access key) — identity-free */
   const [reviewerUntil, setReviewerUntil] = useState<string | null>(
-    () => getReviewerSession()?.expiresAt ?? null,
+    () => (IS_DESKTOP ? null : (getReviewerSession()?.expiresAt ?? null)),
   );
   const [reviewerKey, setReviewerKey] = useState("");
   const [reviewerBusy, setReviewerBusy] = useState(false);
@@ -288,7 +280,7 @@ export function AiPanel({
               Sign out
             </button>
           </>
-        ) : reviewerUntil ? (
+        ) : !IS_DESKTOP && reviewerUntil ? (
           <>
             <span className="text-sphere">Reviewer access</span>
             <span className="text-muted-foreground">Local memory</span>
@@ -304,14 +296,14 @@ export function AiPanel({
               </span>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
-                {isDesktopFile ? (
+                {IS_DESKTOP ? (
                   <OwnerSignIn onSignedIn={() => void refresh()} />
                 ) : (
                   <>
                     <span className="text-accent">
                       Sign in to use the AI features (5 free reviews).
                     </span>
-                    <a href={authHref} {...authLinkProps} className="btn-primary ml-auto px-2 py-0.5">
+                    <a href="/auth" className="btn-primary ml-auto px-2 py-0.5">
                       Sign in
                     </a>
                   </>
@@ -321,29 +313,33 @@ export function AiPanel({
                 </button>
               </div>
             )}
-            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
-              <span className="label-caps">or reviewer / authorized access</span>
-              <input
-                className="field field-focus w-56 px-2 py-0.5"
-                type="password"
-                autoComplete="off"
-                placeholder="Access key"
-                value={reviewerKey}
-                onChange={(e) => setReviewerKey(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && reviewerKey.trim() && !reviewerBusy)
-                    void submitReviewerKey();
-                }}
-              />
-              <button
-                className="btn-primary px-2 py-0.5"
-                disabled={reviewerBusy || reviewerKey.trim().length < 8}
-                onClick={() => void submitReviewerKey()}
-              >
-                {reviewerBusy ? "Checking…" : "Continue"}
-              </button>
-            </div>
-            {reviewerError && <span className="text-fibre">{reviewerError}</span>}
+            {!IS_DESKTOP && (
+              <>
+                <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
+                  <span className="label-caps">or reviewer / authorized access</span>
+                  <input
+                    className="field field-focus w-56 px-2 py-0.5"
+                    type="password"
+                    autoComplete="off"
+                    placeholder="Access key"
+                    value={reviewerKey}
+                    onChange={(e) => setReviewerKey(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && reviewerKey.trim() && !reviewerBusy)
+                        void submitReviewerKey();
+                    }}
+                  />
+                  <button
+                    className="btn-primary px-2 py-0.5"
+                    disabled={reviewerBusy || reviewerKey.trim().length < 8}
+                    onClick={() => void submitReviewerKey()}
+                  >
+                    {reviewerBusy ? "Checking…" : "Continue"}
+                  </button>
+                </div>
+                {reviewerError && <span className="text-fibre">{reviewerError}</span>}
+              </>
+            )}
           </div>
         )}
 

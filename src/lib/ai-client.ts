@@ -12,6 +12,11 @@ import { aiBaseUrl } from "@/lib/ai-client-base";
 
 export { aiBaseUrl };
 
+declare const __MICROFLUOR_DESKTOP__: boolean | undefined;
+
+const IS_DESKTOP =
+  typeof __MICROFLUOR_DESKTOP__ === "boolean" ? __MICROFLUOR_DESKTOP__ : false;
+
 export function isOnline(): boolean {
   return typeof navigator === "undefined" ? true : navigator.onLine !== false;
 }
@@ -49,9 +54,10 @@ function parseError(status: number, text: string): AiRequestError {
 }
 
 async function aiHeaders(): Promise<Record<string, string>> {
-  // A normal account session takes priority; otherwise an active anonymous
-  // reviewer token is used. Both are plain bearer tokens to the server.
-  const token = (await getAccessToken()) ?? getReviewerSession()?.token ?? null;
+  // Desktop AI is account-only. Web AI may use an authenticated account or an
+  // active anonymous reviewer token from the reviewer gate.
+  const accountToken = await getAccessToken();
+  const token = accountToken ?? (IS_DESKTOP ? null : (getReviewerSession()?.token ?? null));
   if (!token) {
     throw new AiRequestError(
       401,

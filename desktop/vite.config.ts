@@ -18,6 +18,7 @@ export default defineConfig({
   define: {
     __MICROFLUOR_PKG_VERSION__: JSON.stringify(pkg.version ?? "0.0.0"),
     __MICROFLUOR_PREPUBLICATION__: "false",
+    __MICROFLUOR_DESKTOP__: "true",
   },
   resolve: {
     alias: { "@": path.resolve(import.meta.dirname, "../src") },

@@ -1,6 +1,6 @@
 {
   "name": "tanstack_start_ts",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "private": true,
   "sideEffects": false,
   "type": "module",
@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "desktop:build": "vite build --config desktop/vite.config.ts",
-    "desktop:package": "vite build --config desktop/vite.config.ts && node scripts/package-windows.mjs"
+    "desktop:package": "node scripts/clean-desktop.mjs && vite build --config desktop/vite.config.ts && node scripts/package-windows.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

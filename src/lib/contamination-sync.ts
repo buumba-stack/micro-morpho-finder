@@ -60,8 +60,6 @@ function mergeNewest<T extends { id: string; updated_at: string; synced: boolean
 
 /** Pushes unsynced rows, then replaces local rows with the account copy. */
 export async function syncMemory(local: MemoryState): Promise<SyncResult> {
-  // Anonymous reviewer sessions are local-only: never read or write account data.
-  if (isReviewerSessionActive()) return { userId: null, state: null, error: null };
   const client = await getAuthClient();
   if (!client) return { userId: null, state: null, error: "offline" };
 
@@ -72,7 +70,12 @@ export async function syncMemory(local: MemoryState): Promise<SyncResult> {
   } catch {
     return { userId: null, state: null, error: "offline" };
   }
-  if (!userId) return { userId: null, state: null, error: null };
+  // A normal signed-in account always takes precedence over a stale reviewer
+  // token. Genuine anonymous reviewers remain strictly local-only.
+  if (!userId) {
+    if (isReviewerSessionActive()) return { userId: null, state: null, error: null };
+    return { userId: null, state: null, error: null };
+  }
 
   try {
     // ---- push (order matters for the foreign keys) ----
