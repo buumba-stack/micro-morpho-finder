@@ -17,11 +17,12 @@ const pkg = JSON.parse(
 /**
  * Build target for the browser-facing bundle.
  *
- *   web-prepublication (default) — public site serves only the pre-publication
- *     shell; the analyzer module is aliased away so it is never bundled or
- *     delivered to browsers. Backend/API routes and /auth stay untouched.
- *   web-full — restore the normal public MicroFluor web analyzer (set
- *     MICROFLUOR_BUILD_TARGET=web-full to reverse this temporary mode).
+ *   web-prepublication (default) — the public entry point is the reviewer gate:
+ *     unauthorized visitors get only the pre-publication notice + access-key
+ *     field, and the analyzer is a lazily loaded chunk requested solely after
+ *     the server validated a signed anonymous reviewer token. Backend/API
+ *     routes and /auth stay untouched.
+ *   web-full — public MicroFluor web analyzer with no pre-publication framing.
  *
  * The desktop/Electron bundle uses desktop/vite.config.ts and is unaffected.
  */
@@ -40,18 +41,5 @@ export default defineConfig({
       __MICROFLUOR_PREPUBLICATION__: JSON.stringify(PREPUBLICATION),
     },
     build: { sourcemap: false },
-    resolve: PREPUBLICATION
-      ? {
-          alias: [
-            {
-              find: /^@\/components\/AnalyzerApp$/,
-              replacement: path.resolve(
-                import.meta.dirname,
-                "src/components/PrePublicationNotice.tsx",
-              ),
-            },
-          ],
-        }
-      : {},
   },
 });

@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-// In web-prepublication builds this specifier is aliased to
-// src/components/PrePublicationNotice.tsx (see vite.config.ts), so no analyzer
-// code reaches the browser bundle. The desktop build imports the real module.
-import { AnalyzerApp } from "@/components/AnalyzerApp";
+// The analyzer is NEVER imported statically here: in the web deployment it is a
+// lazily loaded chunk that ReviewerGate only requests after the server has
+// validated a signed anonymous reviewer token. The desktop bundle mounts
+// AnalyzerApp directly (desktop/main.tsx) and never uses this route.
+import { ReviewerGate } from "@/components/ReviewerGate";
 
 declare const __MICROFLUOR_PREPUBLICATION__: boolean | undefined;
 const PREPUB = typeof __MICROFLUOR_PREPUBLICATION__ === "boolean"
@@ -35,5 +36,5 @@ export const Route = createFileRoute("/")({
           { name: "twitter:card", content: "summary_large_image" },
         ],
   }),
-  component: AnalyzerApp,
+  component: ReviewerGate,
 });
