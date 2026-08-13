@@ -57,7 +57,7 @@ export function ReviewerGate() {
     return (
       <>
         <div className="flex items-center justify-end gap-3 border-b border-border px-3 py-1 font-mono text-[11px] text-muted-foreground">
-          <span className="text-sphere">Authorized reviewer session</span>
+          <span className="text-sphere">Reviewer access</span>
           <button
             className="btn-ghost px-2 py-0.5"
             onClick={() => {
@@ -110,10 +110,12 @@ export function ReviewerGate() {
           {busy ? "Checking…" : "Access MicroFluor"}
         </button>
         {error && <p className="font-mono text-[11px] text-fibre">{error}</p>}
-        <p className="font-mono text-[11px] text-muted-foreground">
-          No account, name or email is required. Reviewer work stays in this browser.
-        </p>
       </section>
+
+      <p className="text-center font-mono text-[11px] text-muted-foreground">
+        MicroFluor © 2026 Buumba Hampuwo. All Rights Reserved.
+      </p>
     </main>
   );
 }
+
