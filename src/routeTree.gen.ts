@@ -18,6 +18,7 @@ import { Route as ApiPublicAiChatRouteImport } from './routes/api/public/ai-chat
 import { Route as ApiPublicAiDecideRouteImport } from './routes/api/public/ai-decide'
 import { Route as ApiPublicAiQcRouteImport } from './routes/api/public/ai-qc'
 import { Route as ApiPublicReviewerAuthRouteImport } from './routes/api/public/reviewer-auth'
+import { Route as ApiPublicReviewerVerifyRouteImport } from './routes/api/public/reviewer-verify'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -64,6 +65,11 @@ const ApiPublicReviewerAuthRoute = ApiPublicReviewerAuthRouteImport.update({
   path: '/api/public/reviewer-auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicReviewerVerifyRoute = ApiPublicReviewerVerifyRouteImport.update({
+  id: '/api/public/reviewer-verify',
+  path: '/api/public/reviewer-verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/api/public/ai-decide': typeof ApiPublicAiDecideRoute
   '/api/public/ai-qc': typeof ApiPublicAiQcRoute
   '/api/public/reviewer-auth': typeof ApiPublicReviewerAuthRoute
+  '/api/public/reviewer-verify': typeof ApiPublicReviewerVerifyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByTo {
   '/api/public/ai-decide': typeof ApiPublicAiDecideRoute
   '/api/public/ai-qc': typeof ApiPublicAiQcRoute
   '/api/public/reviewer-auth': typeof ApiPublicReviewerAuthRoute
+  '/api/public/reviewer-verify': typeof ApiPublicReviewerVerifyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -98,6 +106,7 @@ export interface FileRoutesById {
   '/api/public/ai-decide': typeof ApiPublicAiDecideRoute
   '/api/public/ai-qc': typeof ApiPublicAiQcRoute
   '/api/public/reviewer-auth': typeof ApiPublicReviewerAuthRoute
+  '/api/public/reviewer-verify': typeof ApiPublicReviewerVerifyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -111,6 +120,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-decide'
     | '/api/public/ai-qc'
     | '/api/public/reviewer-auth'
+    | '/api/public/reviewer-verify'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -122,6 +132,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-decide'
     | '/api/public/ai-qc'
     | '/api/public/reviewer-auth'
+    | '/api/public/reviewer-verify'
   id:
     | '__root__'
     | '/'
@@ -133,6 +144,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-decide'
     | '/api/public/ai-qc'
     | '/api/public/reviewer-auth'
+    | '/api/public/reviewer-verify'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -145,6 +157,7 @@ export interface RootRouteChildren {
   ApiPublicAiDecideRoute: typeof ApiPublicAiDecideRoute
   ApiPublicAiQcRoute: typeof ApiPublicAiQcRoute
   ApiPublicReviewerAuthRoute: typeof ApiPublicReviewerAuthRoute
+  ApiPublicReviewerVerifyRoute: typeof ApiPublicReviewerVerifyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -212,6 +225,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicReviewerAuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/reviewer-verify': {
+      id: '/api/public/reviewer-verify'
+      path: '/api/public/reviewer-verify'
+      fullPath: '/api/public/reviewer-verify'
+      preLoaderRoute: typeof ApiPublicReviewerVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -225,6 +245,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAiDecideRoute: ApiPublicAiDecideRoute,
   ApiPublicAiQcRoute: ApiPublicAiQcRoute,
   ApiPublicReviewerAuthRoute: ApiPublicReviewerAuthRoute,
+  ApiPublicReviewerVerifyRoute: ApiPublicReviewerVerifyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
