@@ -85,10 +85,22 @@ export function OwnerSignIn({ onSignedIn }: { onSignedIn: () => void }) {
           onChange={(e) => setPassword(e.target.value)}
         />
       </label>
-      <button className="btn-primary self-start px-3 py-1" type="submit" disabled={busy}>
-        {busy ? "Signing in…" : "Sign in"}
-      </button>
+      <div className="flex items-center gap-2">
+        <button className="btn-primary px-3 py-1" type="submit" disabled={busy}>
+          {busy ? "Signing in…" : "Sign in"}
+        </button>
+        <button
+          className="btn-ghost px-2 py-1"
+          type="button"
+          disabled={busy}
+          onClick={() => void sendPasswordLink()}
+        >
+          Set or reset password
+        </button>
+      </div>
       {error && <span className="text-fibre">{error}</span>}
+      {notice && <span className="text-sphere">{notice}</span>}
     </form>
+
   );
 }
