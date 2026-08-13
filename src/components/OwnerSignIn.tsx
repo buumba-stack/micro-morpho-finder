@@ -11,7 +11,7 @@ import { useState } from "react";
 import { getAuthClient } from "@/hooks/useAuth";
 
 /** Password links must land on a real https page — the desktop app runs from file://. */
-const RESET_URL = "https://micro-morpho-finder.lovable.app/reset-password";
+const RESET_URL = "https://fishmicroplasticfinder.com/reset-password";
 
 export function OwnerSignIn({ onSignedIn }: { onSignedIn: () => void }) {
   const [email, setEmail] = useState("");
