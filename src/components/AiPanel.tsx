@@ -270,7 +270,7 @@ export function AiPanel({
             </button>
           ))}
         </div>
-        <span className="label-caps">GPT-5 · online only</span>
+        <span className="label-caps">AI-assisted · online only</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2 font-mono text-[11px]">
@@ -290,10 +290,8 @@ export function AiPanel({
           </>
         ) : reviewerUntil ? (
           <>
-            <span className="text-sphere">Authorized reviewer session</span>
-            <span className="text-muted-foreground">
-              until {new Date(reviewerUntil).toLocaleString()} · contamination memory local only
-            </span>
+            <span className="text-sphere">Reviewer access</span>
+            <span className="text-muted-foreground">Local memory</span>
             <button className="btn-ghost ml-auto px-2 py-0.5" onClick={stopReviewer}>
               End reviewer session
             </button>
@@ -344,13 +342,11 @@ export function AiPanel({
               >
                 {reviewerBusy ? "Checking…" : "Continue"}
               </button>
-              <span className="text-muted-foreground">
-                No account needed. Reviewer contamination memory stays on this computer.
-              </span>
             </div>
             {reviewerError && <span className="text-fibre">{reviewerError}</span>}
           </div>
         )}
+
       </div>
 
       {error && (
@@ -363,12 +359,11 @@ export function AiPanel({
       {tab === "qc" ? (
         <div className="flex min-h-0 flex-col gap-2 p-3">
           <p className="text-[11px] leading-snug text-muted-foreground">
-            Sends each particle's measurements plus a zoomed crop with its detected outline to
-            GPT-5, which confirms the fibre/sphere/pellet/fragment call and flags overlapping
-            particles, incomplete outlines, border contact and fluorescence unlike the positive
-            controls. Blank matches are sent along as visual evidence; uncertain objects are always
-            kept.
+            AI-assisted second opinion on each detected particle: it may confirm or question the
+            morphology call and flag likely artefacts. Advisory only — measurements are unchanged
+            and nothing is excluded unless you accept it.
           </p>
+
           <div className="flex gap-2">
             <button
               className="btn-primary flex-1"

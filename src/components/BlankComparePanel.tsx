@@ -150,9 +150,8 @@ export function BlankComparePanel({
       <div className="flex flex-col gap-2 p-3">
         {!active ? (
           <p className="text-[11px] leading-snug text-muted-foreground">
-            Select a flagged particle above (or in the viewer/table) to compare it side-by-side with
-            the closest confirmed blank artefacts. Matches are advisory only — nothing is removed
-            unless you exclude it.
+            Select a flagged particle to compare it with the closest confirmed blank artefacts.
+            Advisory only — nothing is removed unless you exclude it.
           </p>
         ) : (
           <>

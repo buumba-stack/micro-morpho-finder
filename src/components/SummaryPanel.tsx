@@ -211,9 +211,8 @@ export function SummaryPanel({
         </button>
       </div>
       <p className="font-mono text-[11px] text-muted-foreground">
-        Exports include microfluor_version {MICROFLUOR_VERSION}, analysis_run_id and
-        analysis_timestamp per image, plus the contaminant family, match score, exclusion reason and
-        decision source per particle.
+        Exports include version {MICROFLUOR_VERSION}, run ID and timestamp per image, and the
+        exclusion reason and decision source per particle.
       </p>
 
     </div>

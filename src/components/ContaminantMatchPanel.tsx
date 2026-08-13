@@ -34,7 +34,7 @@ function MatchRow({ m }: { m: FamilyMatch }) {
       </p>
       {!m.supportedByBlanks && (
         <p className="mt-1 font-mono text-[10px] text-muted-foreground">
-          No procedural-blank evidence in this family — treat as a weaker suggestion.
+          No procedural-blank evidence — weaker suggestion.
         </p>
       )}
     </div>
@@ -109,8 +109,8 @@ export function ContaminantMatchPanel({
         {!active ? (
           <p className="text-[11px] leading-snug text-muted-foreground">
             {flagged.length
-              ? "Select a suggested particle to see which contaminant family it resembles and the evidence behind it."
-              : "No particle in this image resembles a remembered contaminant. Use “Mark as contaminant” on any particle to teach the memory."}
+              ? "Select a suggested particle to see which contaminant family it resembles."
+              : "No matches in this image. Use “Mark as contaminant” on a particle to add one."}
           </p>
         ) : (
           <>

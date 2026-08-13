@@ -82,9 +82,9 @@ export function BlankLibraryPanel({ settings, api }: Props) {
         <div>
           <h2 className="text-sm font-semibold">Procedural-blank library</h2>
           <p className="text-[11px] leading-snug text-muted-foreground">
-            Blank micrographs are run through the same detector as samples. Only objects you mark{" "}
-            <span className="text-destructive">confirmed procedural artefact</span> may ever support
-            an automatic exclusion; everything else stays reference-only.
+            Blanks are analyzed with the same settings as samples. Only objects you mark{" "}
+            <span className="text-destructive">confirmed procedural artefact</span> can support an
+            exclusion; everything else is reference-only.
           </p>
         </div>
         <dl className="flex gap-4 font-mono text-[11px] text-muted-foreground">
@@ -179,7 +179,7 @@ export function BlankLibraryPanel({ settings, api }: Props) {
       <section className="flex min-h-0 flex-col gap-2 border-t border-border pt-3">
         {library.records.length === 0 && (
           <p className="text-xs text-muted-foreground">
-            No blanks yet. Add the procedural blanks acquired with the same solution, protocol and
+            No blanks yet. Add procedural blanks acquired with the same solution, protocol and
             microscope settings as your samples.
           </p>
         )}
