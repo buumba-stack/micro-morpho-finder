@@ -39,6 +39,7 @@ export default defineConfig({
     define: {
       __MICROFLUOR_PKG_VERSION__: JSON.stringify(pkg.version ?? "0.0.0"),
       __MICROFLUOR_PREPUBLICATION__: JSON.stringify(PREPUBLICATION),
+      __MICROFLUOR_DESKTOP__: "false",
     },
     build: { sourcemap: false },
   },

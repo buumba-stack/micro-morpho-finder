@@ -1,16 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-/**
- * Sign-in target. The packaged desktop app runs from file:// with no router,
- * so it opens the hosted auth page in the system browser instead.
- */
-const isDesktopFile =
-  typeof window !== "undefined" && window.location.protocol === "file:";
-const authHref = isDesktopFile
-  ? "https://micro-morpho-finder.lovable.app/auth"
-  : "/auth";
-const authLinkProps = isDesktopFile
-  ? ({ target: "_blank", rel: "noreferrer" } as const)
-  : ({} as const);
 import type { AnalysisSettings } from "@/lib/particle-analysis";
 import type { ImageEntry } from "@/lib/study-types";
 import { buildParticleCrops } from "@/lib/particle-crops";
@@ -24,6 +12,10 @@ import {
   startReviewerSession,
 } from "@/lib/reviewer-session";
 
+declare const __MICROFLUOR_DESKTOP__: boolean | undefined;
+
+const IS_DESKTOP =
+  typeof __MICROFLUOR_DESKTOP__ === "boolean" ? __MICROFLUOR_DESKTOP__ : false;
 
 const BATCH = 12;
 
@@ -304,14 +296,14 @@ export function AiPanel({
               </span>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
-                {isDesktopFile ? (
+                {IS_DESKTOP ? (
                   <OwnerSignIn onSignedIn={() => void refresh()} />
                 ) : (
                   <>
                     <span className="text-accent">
                       Sign in to use the AI features (5 free reviews).
                     </span>
-                    <a href={authHref} {...authLinkProps} className="btn-primary ml-auto px-2 py-0.5">
+                    <a href="/auth" className="btn-primary ml-auto px-2 py-0.5">
                       Sign in
                     </a>
                   </>
