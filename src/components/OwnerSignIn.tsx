@@ -10,16 +10,21 @@
 import { useState } from "react";
 import { getAuthClient } from "@/hooks/useAuth";
 
+/** Password links must land on a real https page — the desktop app runs from file://. */
+const RESET_URL = "https://micro-morpho-finder.lovable.app/reset-password";
+
 export function OwnerSignIn({ onSignedIn }: { onSignedIn: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError("");
+    setNotice("");
     try {
       const client = await getAuthClient();
       if (!client) throw new Error("Account service unavailable. Try again later.");
@@ -32,6 +37,27 @@ export function OwnerSignIn({ onSignedIn }: { onSignedIn: () => void }) {
       setBusy(false);
     }
   };
+
+  const sendPasswordLink = async () => {
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      if (!email) throw new Error("Enter your account email first.");
+      const client = await getAuthClient();
+      if (!client) throw new Error("Account service unavailable. Try again later.");
+      const { error: err } = await client.auth.resetPasswordForEmail(email, {
+        redirectTo: RESET_URL,
+      });
+      if (err) throw err;
+      setNotice("Email sent. Open the link, set a password, then sign in here.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not send email");
+    } finally {
+      setBusy(false);
+    }
+  };
+
 
   return (
     <form className="flex w-full flex-col gap-2" onSubmit={submit}>
