@@ -114,10 +114,6 @@ export function ReviewerGate() {
           No account, name or email is required. Reviewer work stays in this browser.
         </p>
       </section>
-
-      <p className="text-center font-mono text-[11px] text-muted-foreground">
-        MicroFluor © 2026 Buumba Hampuwo. All Rights Reserved.
-      </p>
     </main>
   );
 }
