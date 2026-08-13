@@ -28,6 +28,12 @@ export interface ExportRow {
   contaminantMatchScore: number | null;
   exclusionReason: string;
   decisionSource: string;
+  /** matcher identity behind the suggestion */
+  matchMethod: string;
+  matcherVersion: string;
+  /** reviewer's recorded decision, empty when the particle was never reviewed */
+  humanDecision: string;
+  proceduralBlankSupport: number | null;
 }
 
 const num = (v: number, digits = 4) =>
@@ -62,6 +68,10 @@ export function particlesCsv(rows: ExportRow[]): string {
     "contaminant_match_score",
     "exclusion_reason",
     "decision_source",
+    "match_method",
+    "matcher_version",
+    "human_decision",
+    "procedural_blank_support",
   ];
   const lines = rows.map((r) =>
     [
@@ -88,6 +98,10 @@ export function particlesCsv(rows: ExportRow[]): string {
       r.contaminantMatchScore === null ? "" : num(r.contaminantMatchScore, 3),
       csvCell(r.exclusionReason),
       csvCell(r.decisionSource),
+      csvCell(r.matchMethod),
+      csvCell(r.matcherVersion),
+      csvCell(r.humanDecision),
+      r.proceduralBlankSupport === null ? "" : String(r.proceduralBlankSupport),
     ].join(","),
   );
   return [header.join(","), ...lines].join("\n");

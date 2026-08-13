@@ -39,6 +39,7 @@ export function ImageViewer({
   const [showLabels, setShowLabels] = useState(true);
   const [zoom, setZoom] = useState(1);
   const blankMatches = entry?.blankMatches;
+  const contaminantMatches = entry?.contaminantMatches;
   const keptIds = useMemo(() => new Set(entry?.blankKeep ?? []), [entry?.blankKeep]);
 
   useEffect(() => {
@@ -89,6 +90,7 @@ export function ImageViewer({
     if (!showOutlines) return;
     const rejectedColor = cssColor("--rejected");
     const blankColor = cssColor("--accent") || "#e0a33c";
+    const contaminantColor = cssColor("--rejected") || "#d1495b";
     const lw = Math.max(1, Math.round(Math.max(canvas.width, canvas.height) / 700));
     ctx.lineJoin = "round";
     ctx.font = `${Math.max(11, Math.round(canvas.height / 60))}px "JetBrains Mono", monospace`;
@@ -127,6 +129,27 @@ export function ImageViewer({
         ctx.globalAlpha = 1;
       }
 
+      // contamination-memory match marker: dotted halo + "C", advisory only
+      const contaminant = contaminantMatches?.[p.id];
+      if (contaminant) {
+        const muted = p.rejected;
+        ctx.setLineDash([lw, lw * 3]);
+        ctx.strokeStyle = contaminantColor;
+        ctx.globalAlpha = muted ? 0.4 : 0.95;
+        ctx.lineWidth = contaminant.highConfidence && !muted ? lw * 2.5 : lw * 1.5;
+        const pad = Math.max(3, lw * 7);
+        ctx.strokeRect(p.bxPx - pad, p.byPx - pad, p.bwPx + pad * 2, p.bhPx + pad * 2);
+        ctx.setLineDash([]);
+        ctx.fillStyle = contaminantColor;
+        ctx.fillText(
+          `C${Math.round(contaminant.similarity * 100)}`,
+          p.bxPx + p.bwPx + pad,
+          Math.max(12, p.byPx - pad),
+        );
+        ctx.globalAlpha = 1;
+      }
+
+
       if (p.id === selectedId) {
         ctx.setLineDash([]);
         ctx.strokeStyle = color;
@@ -151,6 +174,7 @@ export function ImageViewer({
     particles,
     selectedId,
     blankMatches,
+    contaminantMatches,
     keptIds,
   ]);
 

@@ -26,7 +26,9 @@ import {
   type FamilyStatus,
 } from "@/lib/contamination-memory";
 
-export const CONTAMINANT_MATCHER_VERSION = "blank_matcher/1.1-family";
+/** Explicit matcher identity stored with every prediction and decision. */
+export const CONTAMINANT_MATCH_METHOD = "contaminant_matcher";
+export const CONTAMINANT_MATCHER_VERSION = "contaminant_matcher/1.1-family-centroid";
 
 /** Low-confidence matches are shown, not hidden — the reviewer decides. */
 export const CONTAMINANT_MIN_SIMILARITY = 0.55;
@@ -119,6 +121,8 @@ function centroid(list: AppearanceFeatures[]): AppearanceFeatures | null {
 export interface MatchOptions {
   limit?: number;
   minSimilarity?: number;
+  /** family ids the reviewer already overruled for this particle */
+  suppressedFamilyIds?: Set<string> | undefined;
 }
 
 /** Ranked contaminant families for one particle's already-calculated features. */
@@ -131,14 +135,17 @@ export function matchContaminantFamilies(
 ): FamilyMatch[] {
   const limit = options.limit ?? 3;
   const min = options.minSimilarity ?? CONTAMINANT_MIN_SIMILARITY;
+  const suppressed = options.suppressedFamilyIds;
   const out: FamilyMatch[] = [];
 
   for (const family of families) {
+    if (suppressed?.has(family.id)) continue;
     const tier = scopeTier(family, ctx);
     if (tier === null) continue;
 
     const own = observations.filter((o) => o.family_id === family.id && o.manually_confirmed);
     if (!own.length) continue;
+
 
     const vectors = own.map((o) => o.particle_features as AppearanceFeatures);
     let best = 0;
@@ -178,6 +185,11 @@ export function matchContaminantFamilies(
   return out.slice(0, limit);
 }
 
+export interface ImageMatchOptions extends MatchOptions {
+  /** per-particle family suppressions from the persistent decision log */
+  suppressedFor?: ((particleId: number) => Set<string> | undefined) | undefined;
+}
+
 /**
  * Re-compares every already-analysed particle of one image using its stored
  * feature vector. No image decoding, no re-segmentation.
@@ -187,14 +199,19 @@ export function computeContaminantMatches(
   families: ContaminantFamily[],
   observations: ContaminantObservation[],
   ctx: MemoryContext = {},
-  options: MatchOptions = {},
+  options: ImageMatchOptions = {},
 ): ContaminantMatchMap {
   const out: ContaminantMatchMap = {};
   if (!featuresById || !families.length || !observations.length) return out;
+  const { suppressedFor, ...base } = options;
   for (const [id, features] of Object.entries(featuresById)) {
-    const matches = matchContaminantFamilies(features, families, observations, ctx, options);
-    if (!matches.length) continue;
     const particleId = Number(id);
+    const suppressedFamilyIds = suppressedFor?.(particleId) ?? base.suppressedFamilyIds;
+    const matches = matchContaminantFamilies(features, families, observations, ctx, {
+      ...base,
+      suppressedFamilyIds,
+    });
+    if (!matches.length) continue;
     out[particleId] = {
       particleId,
       similarity: matches[0]!.similarity,
@@ -204,3 +221,4 @@ export function computeContaminantMatches(
   }
   return out;
 }
+

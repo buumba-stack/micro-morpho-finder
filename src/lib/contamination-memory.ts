@@ -117,6 +117,8 @@ export interface ContaminantObservation {
   particle_features: AppearanceFeatures & Record<string, number>;
   manually_confirmed: boolean;
   notes: string | null;
+  /** deterministic identity of an imported blank candidate (cross-device dedup) */
+  import_fingerprint: string | null;
   created_at: string;
   synced: boolean;
 }
@@ -133,9 +135,18 @@ export interface ParticleDecisionRow {
   decision: ParticleDecision;
   decision_source: string;
   particle_features: (AppearanceFeatures & Record<string, number>) | null;
+  /** immutable provenance — survives deletion of the family */
+  contaminant_family_id_snapshot: string | null;
+  contaminant_family_name_snapshot: string | null;
+  contaminant_scope: string | null;
+  match_method: string | null;
+  matcher_version: string | null;
+  exclusion_reason: string | null;
+  procedural_blank_support: number | null;
   created_at: string;
   synced: boolean;
 }
+
 
 export interface ParticlePredictionRow {
   id: string;
@@ -290,4 +301,84 @@ export function suggestedStatus(summary: FamilySummary): FamilyStatus {
   if (summary.confirmedObservations >= 4 && summary.imageCount >= 2) return "established";
   if (summary.confirmedObservations >= 2) return "characterising";
   return "new";
+}
+
+/* --------------------------- feature-vector safety ------------------------ */
+
+/** Keys that must carry a finite number before an observation may be stored. */
+const REQUIRED_FEATURE_KEYS = [
+  "logArea",
+  "elongation",
+  "circularity",
+  "solidity",
+  "meanIntensity",
+  "contrast",
+  "hue",
+  "saturation",
+  "intensitySd",
+] as const;
+
+/**
+ * True only when the cached appearance features exist and carry usable finite
+ * values. Guards the memory against `{}` observations, which would create a
+ * false training example without any evidence behind it.
+ */
+export function hasUsableFeatures(features: unknown): boolean {
+  if (!features || typeof features !== "object") return false;
+  const rec = features as Record<string, unknown>;
+  const present = REQUIRED_FEATURE_KEYS.filter(
+    (k) => typeof rec[k] === "number" && Number.isFinite(rec[k] as number),
+  );
+  // every required key must be a finite number — no partial vectors
+  return present.length === REQUIRED_FEATURE_KEYS.length;
+}
+
+/* ------------------------- deterministic import id ------------------------ */
+
+/**
+ * Stable identity of one logically-imported blank candidate. Two devices
+ * importing the same blank-library candidate produce the same fingerprint, so
+ * the account database keeps a single observation.
+ */
+export function blankImportFingerprint(input: {
+  sourceType: SourceType;
+  sourceImageId?: string | null;
+  particleId: number | string;
+  candidateKey?: string | null;
+}): string {
+  return [
+    "blank-import",
+    input.sourceType,
+    input.sourceImageId ?? "",
+    String(input.particleId),
+    input.candidateKey ?? "",
+  ].join("|");
+}
+
+/* --------------------------- keep suppressions ---------------------------- */
+
+export function suppressionKey(
+  sourceImageId: string | null | undefined,
+  particleId: number | string,
+): string {
+  return `${sourceImageId ?? ""}#${particleId}`;
+}
+
+/**
+ * Family suggestions the reviewer explicitly overruled, per image+particle.
+ * Derived from the persistent decision log, so it survives recomputation,
+ * reloads and device sync. Only the rejected family is suppressed.
+ */
+export function buildKeepSuppressions(
+  decisions: ParticleDecisionRow[],
+): Record<string, Set<string>> {
+  const out: Record<string, Set<string>> = {};
+  for (const d of decisions) {
+    if (d.decision !== "keep_genuine_particle") continue;
+    const familyId = d.contaminant_family_id_snapshot ?? d.contaminant_family_id;
+    if (!familyId || d.particle_id === null) continue;
+    const key = suppressionKey(d.source_image_id, d.particle_id);
+    (out[key] ??= new Set<string>()).add(familyId);
+  }
+  return out;
 }

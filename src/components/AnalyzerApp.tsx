@@ -9,6 +9,7 @@ import { isEntryStale, type ImageEntry, type RunProgress } from "@/lib/study-typ
 import { computeBlankMatches, computeParticleFeatures } from "@/lib/blank-matching";
 import {
   CONTAMINANT_MATCHER_VERSION,
+  CONTAMINANT_MATCH_METHOD,
   computeContaminantMatches,
 } from "@/lib/contaminant-matching";
 import { deleteParticles } from "@/lib/particle-edit";
@@ -194,6 +195,7 @@ export function AnalyzerApp() {
             tissue: entry.tissue,
             protocol: memory.activeBatch?.protocol ?? null,
           },
+          { suppressedFor: (pid) => memory.suppressedFamilyIds(entry.id, pid) },
         );
         const analysisId = `${Date.now()}`;
         const run = newAnalysisRun();
@@ -242,7 +244,7 @@ export function AnalyzerApp() {
               sourceImageId: entry.id,
               sourceImageName: entry.name,
               tissue: entry.tissue,
-              method: "blank_matcher",
+              method: CONTAMINANT_MATCH_METHOD,
               prediction: "possible_contaminant",
               confidence: m.similarity,
               contaminantFamilyId: m.matches[0]?.familyId ?? null,
@@ -545,6 +547,7 @@ export function AnalyzerApp() {
     (particleId: number, decision: "confirmed_contaminant" | "keep_genuine_particle", proposed: string | null) => {
       if (!current) return;
       const match = displayEntry?.contaminantMatches?.[particleId];
+      const top = match?.matches[0];
       memory.recordDecision({
         particleId,
         sourceImageId: current.id,
@@ -552,9 +555,18 @@ export function AnalyzerApp() {
         tissue: current.tissue,
         features: displayEntry?.features?.[particleId],
         decision,
-        contaminantFamilyId: match?.matches[0]?.familyId ?? null,
+        contaminantFamilyId: top?.familyId ?? null,
+        contaminantFamilyName: top?.familyName ?? null,
+        contaminantScope: top?.scope ?? null,
         proposedPrediction: proposed,
         proposedConfidence: match?.similarity ?? null,
+        matchMethod: match ? CONTAMINANT_MATCH_METHOD : null,
+        matcherVersion: match ? CONTAMINANT_MATCHER_VERSION : null,
+        exclusionReason:
+          decision === "confirmed_contaminant"
+            ? "contaminant_memory_match"
+            : "reviewer_kept_genuine_particle",
+        proceduralBlankSupport: top?.blankObservations ?? null,
       });
     },
     [current, displayEntry, memory],
@@ -569,6 +581,22 @@ export function AnalyzerApp() {
     [recordParticleDecision, setRejected],
   );
 
+  /**
+   * User-initiated bulk exclusion. Never automatic: the reviewer decides, and
+   * each excluded particle keeps its own decision record.
+   */
+  const excludeAllHighConfidenceContaminants = useCallback(() => {
+    if (!displayEntry?.contaminantMatches) return;
+    const ids = Object.values(displayEntry.contaminantMatches)
+      .filter((m) => m.highConfidence)
+      .map((m) => m.particleId);
+    if (!ids.length || !current) return;
+    applyExclusions(current.id, ids);
+    for (const id of ids) {
+      recordParticleDecision(id, "confirmed_contaminant", "possible_contaminant");
+    }
+  }, [applyExclusions, current, displayEntry, recordParticleDecision]);
+
   /** Negative feedback: the reviewer overrules a contaminant suggestion. */
   const keepAsGenuine = useCallback(
     (particleId: number) => {
@@ -577,6 +605,7 @@ export function AnalyzerApp() {
     },
     [recordParticleDecision, setRejected],
   );
+
 
   /**
    * Re-compares already-analysed particles whenever the memory or the active
@@ -593,11 +622,20 @@ export function AnalyzerApp() {
           tissue: e.tissue,
           protocol: memory.activeBatch?.protocol ?? null,
         };
+        const opts = {
+          suppressedFor: (pid: number) => memory.suppressedFamilyIds(e.id, pid),
+        };
         const next = e.features
-          ? computeContaminantMatches(e.features, memory.families, memory.observations, ctx)
+          ? computeContaminantMatches(e.features, memory.families, memory.observations, ctx, opts)
           : undefined;
         const nextDraft = e.draft?.features
-          ? computeContaminantMatches(e.draft.features, memory.families, memory.observations, ctx)
+          ? computeContaminantMatches(
+              e.draft.features,
+              memory.families,
+              memory.observations,
+              ctx,
+              opts,
+            )
           : undefined;
         const changed =
           JSON.stringify(next ?? {}) !== JSON.stringify(e.contaminantMatches ?? {}) ||
@@ -610,7 +648,14 @@ export function AnalyzerApp() {
         };
       }),
     );
-  }, [memory.loaded, memory.families, memory.observations, memory.activeBatch]);
+  }, [
+    memory.loaded,
+    memory.families,
+    memory.observations,
+    memory.activeBatch,
+    memory.keepSuppressions,
+    memory.suppressedFamilyIds,
+  ]);
 
   const removeEntry = useCallback((id: string) => {
     setEntries((prev) => prev.filter((e) => e.id !== id));
@@ -831,9 +876,10 @@ export function AnalyzerApp() {
             onExclude={excludeAsContaminant}
             onKeep={keepAsGenuine}
             onMark={openMark}
+            onExcludeAllHighConfidence={excludeAllHighConfidenceContaminants}
           />
 
-          <SummaryPanel entries={entries} />
+          <SummaryPanel entries={entries} decisions={memory.decisions} />
           <AiPanel
             entry={current}
             entries={entries}

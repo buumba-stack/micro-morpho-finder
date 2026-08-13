@@ -8,11 +8,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppearanceFeatures } from "@/lib/blank-library";
 import {
   EMPTY_MEMORY,
+  blankImportFingerprint,
+  buildKeepSuppressions,
+  hasUsableFeatures,
   loadMemory,
   memoryUuid,
   saveMemory,
   suggestedStatus,
   summariseFamily,
+  suppressionKey,
   type AnalysisBatch,
   type ContaminantFamily,
   type ContaminantObservation,
@@ -24,6 +28,10 @@ import {
   type ParticlePredictionRow,
   type SourceType,
 } from "@/lib/contamination-memory";
+import {
+  CONTAMINANT_MATCHER_VERSION,
+  CONTAMINANT_MATCH_METHOD,
+} from "@/lib/contaminant-matching";
 import {
   deleteRemoteFamily,
   deleteRemoteObservation,
@@ -234,8 +242,14 @@ export function useContaminationMemory() {
 
   /* ------------------------- observations & decisions ----------------------- */
 
+  /**
+   * The ONLY path that creates confirmed contaminant truth. Refuses to store an
+   * observation without a usable cached feature vector, so family evidence can
+   * never be inflated by an empty `{}` example.
+   */
   const markContaminant = useCallback(
     (input: MarkContaminantInput) => {
+      if (!hasUsableFeatures(input.features)) return null;
       const now = new Date().toISOString();
       const activeBatchId = stateRef.current.activeBatchId;
       let familyId = input.familyId;
@@ -265,6 +279,9 @@ export function useContaminationMemory() {
         familyId = newFamily.id;
       }
 
+      const family =
+        newFamily ?? stateRef.current.families.find((f) => f.id === familyId) ?? null;
+
       const observation: ContaminantObservation = {
         id: memoryUuid(),
         family_id: familyId,
@@ -275,9 +292,10 @@ export function useContaminationMemory() {
         source_image_name: input.sourceImageName ?? null,
         tissue: input.tissue ?? null,
         protocol: input.protocol ?? null,
-        particle_features: (input.features ?? {}) as ContaminantObservation["particle_features"],
+        particle_features: input.features as ContaminantObservation["particle_features"],
         manually_confirmed: true,
         notes: input.note ?? null,
+        import_fingerprint: null,
         created_at: now,
         synced: false,
       };
@@ -292,9 +310,16 @@ export function useContaminationMemory() {
         proposed_prediction: input.proposedPrediction ?? null,
         proposed_confidence: input.proposedConfidence ?? null,
         decision: "confirmed_contaminant",
-        decision_source: "manual_review",
+        decision_source: "manual_mark_as_contaminant",
         particle_features: (input.features ??
           null) as ParticleDecisionRow["particle_features"],
+        contaminant_family_id_snapshot: familyId,
+        contaminant_family_name_snapshot: family?.name ?? null,
+        contaminant_scope: family?.scope ?? null,
+        match_method: input.proposedPrediction ? CONTAMINANT_MATCH_METHOD : null,
+        matcher_version: input.proposedPrediction ? CONTAMINANT_MATCHER_VERSION : null,
+        exclusion_reason: "manually_marked_contaminant",
+        procedural_blank_support: null,
         created_at: now,
         synced: false,
       };
@@ -320,15 +345,25 @@ export function useContaminationMemory() {
     [commit, sync],
   );
 
-  /** Negative feedback: the reviewer kept a particle the matcher had flagged. */
+  /**
+   * Human truth for one particle. Never creates a positive observation — the
+   * "keep" case is negative feedback and is what suppresses that family's
+   * suggestion for that particle from then on.
+   */
   const recordDecision = useCallback(
     (
       input: ParticleRef & {
         decision: ParticleDecision;
         contaminantFamilyId?: string | null;
+        contaminantFamilyName?: string | null;
+        contaminantScope?: string | null;
         proposedPrediction?: string | null;
         proposedConfidence?: number | null;
         decisionSource?: string;
+        matchMethod?: string | null;
+        matcherVersion?: string | null;
+        exclusionReason?: string | null;
+        proceduralBlankSupport?: number | null;
       },
     ) => {
       const row: ParticleDecisionRow = {
@@ -344,6 +379,13 @@ export function useContaminationMemory() {
         decision_source: input.decisionSource ?? "manual_review",
         particle_features: (input.features ??
           null) as ParticleDecisionRow["particle_features"],
+        contaminant_family_id_snapshot: input.contaminantFamilyId ?? null,
+        contaminant_family_name_snapshot: input.contaminantFamilyName ?? null,
+        contaminant_scope: input.contaminantScope ?? null,
+        match_method: input.matchMethod ?? null,
+        matcher_version: input.matcherVersion ?? null,
+        exclusion_reason: input.exclusionReason ?? null,
+        procedural_blank_support: input.proceduralBlankSupport ?? null,
         created_at: new Date().toISOString(),
         synced: false,
       };
@@ -352,6 +394,7 @@ export function useContaminationMemory() {
     },
     [commit, sync],
   );
+
 
   /** Advisory matcher output — kept apart from confirmed decisions. */
   const recordPredictions = useCallback(
@@ -403,9 +446,27 @@ export function useContaminationMemory() {
       const now = new Date().toISOString();
       commit((prev) => {
         const already = new Set(prev.importedBlankCandidates);
-        const fresh = items.filter((i) => !already.has(i.key));
+        // deterministic fingerprints already present remotely/locally are skipped
+        const fingerprinted = new Set(
+          prev.observations.map((o) => o.import_fingerprint).filter((v): v is string => !!v),
+        );
+        const fresh = items
+          .filter((i) => hasUsableFeatures(i.features))
+          .map((i) => ({
+            item: i,
+            fingerprint: blankImportFingerprint({
+              sourceType: "procedural_blank",
+              sourceImageId: i.sourceImageId ?? null,
+              particleId: i.particleId,
+              candidateKey: i.key,
+            }),
+          }))
+          .filter(
+            ({ item, fingerprint }) =>
+              !already.has(item.key) && !fingerprinted.has(fingerprint),
+          );
         if (!fresh.length) return prev;
-        const observations: ContaminantObservation[] = fresh.map((i) => ({
+        const observations: ContaminantObservation[] = fresh.map(({ item: i, fingerprint }) => ({
           id: memoryUuid(),
           family_id: familyId,
           batch_id: prev.activeBatchId,
@@ -418,6 +479,7 @@ export function useContaminationMemory() {
           particle_features: i.features as ContaminantObservation["particle_features"],
           manually_confirmed: true,
           notes: i.note ?? "Imported from procedural-blank library",
+          import_fingerprint: fingerprint,
           created_at: now,
           synced: false,
         }));
@@ -429,9 +491,13 @@ export function useContaminationMemory() {
           families: prev.families.map((f) =>
             f.id === familyId ? { ...f, status: suggestedStatus(summary), synced: false } : f,
           ),
-          importedBlankCandidates: [...prev.importedBlankCandidates, ...fresh.map((i) => i.key)],
+          importedBlankCandidates: [
+            ...prev.importedBlankCandidates,
+            ...fresh.map(({ item }) => item.key),
+          ],
         };
       });
+
       void sync();
     },
     [commit, sync],
@@ -475,6 +541,14 @@ export function useContaminationMemory() {
     () => state.batches.find((b) => b.id === state.activeBatchId) ?? null,
     [state.batches, state.activeBatchId],
   );
+  const keepSuppressions = useMemo(() => buildKeepSuppressions(state.decisions), [state.decisions]);
+
+  const suppressedFamilyIds = useCallback(
+    (sourceImageId: string | null | undefined, particleId: number | string) =>
+      keepSuppressions[suppressionKey(sourceImageId, particleId)],
+    [keepSuppressions],
+  );
+
 
   const pendingSync = useMemo(
     () =>
@@ -497,6 +571,9 @@ export function useContaminationMemory() {
     families: state.families,
     observations: state.observations,
     decisions: state.decisions,
+    /** family suggestions the reviewer overruled, keyed by image#particle */
+    keepSuppressions,
+    suppressedFamilyIds,
     activeBatch,
     createBatch,
     updateBatch,
