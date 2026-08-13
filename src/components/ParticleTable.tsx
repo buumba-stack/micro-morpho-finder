@@ -1,5 +1,6 @@
 import type { Particle } from "@/lib/particle-analysis";
 import type { BlankMatchMap } from "@/lib/blank-matching";
+import type { ContaminantMatchMap } from "@/lib/contaminant-matching";
 
 const MORPH_CLASS: Record<string, string> = {
   fibre: "text-fibre",
@@ -12,6 +13,9 @@ interface Props {
   particles: Particle[];
   blankMatches?: BlankMatchMap | undefined;
   blankKeep?: number[] | undefined;
+  contaminantMatches?: ContaminantMatchMap | undefined;
+  /** opens the "mark as contaminant" dialog for this particle */
+  onMark?: ((id: number) => void) | undefined;
   selectedId: number | null;
   onSelect: (id: number) => void;
   onToggleReject: (id: number) => void;
@@ -25,6 +29,8 @@ export function ParticleTable({
   particles,
   blankMatches,
   blankKeep,
+  contaminantMatches,
+  onMark,
   selectedId,
   onSelect,
   onToggleReject,
@@ -32,6 +38,7 @@ export function ParticleTable({
 }: Props) {
   const kept = new Set(blankKeep ?? []);
   const flaggedCount = Object.keys(blankMatches ?? {}).length;
+  const contaminantCount = Object.keys(contaminantMatches ?? {}).length;
 
   return (
     <div className="panel flex min-h-0 flex-col overflow-hidden">
@@ -39,6 +46,7 @@ export function ParticleTable({
         <h3 className="text-sm font-semibold">Particle measurements</h3>
         <span className="label-caps">
           {particles.length} detected{flaggedCount ? ` · ${flaggedCount} blank-matched` : ""}
+          {contaminantCount ? ` · ${contaminantCount} known contaminant` : ""}
         </span>
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
@@ -56,6 +64,8 @@ export function ParticleTable({
                 "Circ",
                 "Class",
                 "Blank",
+                "Contam",
+                "Mark",
                 "Use",
                 "Del",
               ].map((h) => (
@@ -71,6 +81,7 @@ export function ParticleTable({
           <tbody>
             {particles.map((p) => {
               const match = blankMatches?.[p.id];
+              const contaminant = contaminantMatches?.[p.id];
               const isKept = kept.has(p.id);
               return (
                 <tr
@@ -106,6 +117,33 @@ export function ParticleTable({
                       <span className="text-muted-foreground">—</span>
                     )}
                   </td>
+                  <td className="whitespace-nowrap px-2 py-1">
+                    {contaminant ? (
+                      <span
+                        title={`Resembles remembered contaminant ${contaminant.matches[0]?.familyName ?? ""}`}
+                        className={contaminant.highConfidence ? "text-accent" : "text-muted-foreground"}
+                      >
+                        {Math.round(contaminant.similarity * 100)}%
+                        {contaminant.highConfidence ? " ●" : ""}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="px-2 py-1">
+                    {onMark && (
+                      <button
+                        title="Mark this particle as a contaminant in the memory"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMark(p.id);
+                        }}
+                        className="rounded px-1 text-muted-foreground hover:bg-accent/15 hover:text-accent"
+                      >
+                        ⚑
+                      </button>
+                    )}
+                  </td>
                   <td className="px-2 py-1">
                     <input
                       type="checkbox"
@@ -134,7 +172,7 @@ export function ParticleTable({
             })}
             {particles.length === 0 && (
               <tr>
-                <td colSpan={12} className="px-3 py-6 text-center text-muted-foreground">
+                <td colSpan={14} className="px-3 py-6 text-center text-muted-foreground">
                   No particles for this image.
                 </td>
               </tr>

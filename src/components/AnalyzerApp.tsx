@@ -466,7 +466,17 @@ export function AnalyzerApp() {
   const keepDespiteBlank = useCallback(
     (particleId: number) => {
       if (!selectedImage) return;
-      recordKeepDespiteBlankRef.current?.(particleId);
+      // negative feedback for the blank matcher, recorded as reviewer truth
+      memory.recordDecision({
+        particleId,
+        sourceImageId: selectedImage,
+        sourceImageName: current?.name ?? null,
+        tissue: current?.tissue ?? null,
+        features: displayEntry?.features?.[particleId],
+        decision: "keep_genuine_particle",
+        proposedPrediction: "procedural_blank_match",
+        proposedConfidence: displayEntry?.blankMatches?.[particleId]?.similarity ?? null,
+      });
       setEntries((prev) =>
         prev.map((e) =>
           e.id === selectedImage
@@ -486,7 +496,7 @@ export function AnalyzerApp() {
         ),
       );
     },
-    [selectedImage],
+    [current, displayEntry, memory, selectedImage],
   );
 
   const excludeAsBlank = useCallback(
