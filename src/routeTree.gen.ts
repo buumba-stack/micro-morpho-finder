@@ -17,6 +17,7 @@ import { Route as ThirdPartyLicensesRouteImport } from './routes/third-party-lic
 import { Route as ApiPublicAiChatRouteImport } from './routes/api/public/ai-chat'
 import { Route as ApiPublicAiDecideRouteImport } from './routes/api/public/ai-decide'
 import { Route as ApiPublicAiQcRouteImport } from './routes/api/public/ai-qc'
+import { Route as ApiPublicReviewerAuthRouteImport } from './routes/api/public/reviewer-auth'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +59,11 @@ const ApiPublicAiQcRoute = ApiPublicAiQcRouteImport.update({
   path: '/api/public/ai-qc',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicReviewerAuthRoute = ApiPublicReviewerAuthRouteImport.update({
+  id: '/api/public/reviewer-auth',
+  path: '/api/public/reviewer-auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/api/public/ai-chat': typeof ApiPublicAiChatRoute
   '/api/public/ai-decide': typeof ApiPublicAiDecideRoute
   '/api/public/ai-qc': typeof ApiPublicAiQcRoute
+  '/api/public/reviewer-auth': typeof ApiPublicReviewerAuthRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/api/public/ai-chat': typeof ApiPublicAiChatRoute
   '/api/public/ai-decide': typeof ApiPublicAiDecideRoute
   '/api/public/ai-qc': typeof ApiPublicAiQcRoute
+  '/api/public/reviewer-auth': typeof ApiPublicReviewerAuthRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/api/public/ai-chat': typeof ApiPublicAiChatRoute
   '/api/public/ai-decide': typeof ApiPublicAiDecideRoute
   '/api/public/ai-qc': typeof ApiPublicAiQcRoute
+  '/api/public/reviewer-auth': typeof ApiPublicReviewerAuthRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-chat'
     | '/api/public/ai-decide'
     | '/api/public/ai-qc'
+    | '/api/public/reviewer-auth'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-chat'
     | '/api/public/ai-decide'
     | '/api/public/ai-qc'
+    | '/api/public/reviewer-auth'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/api/public/ai-chat'
     | '/api/public/ai-decide'
     | '/api/public/ai-qc'
+    | '/api/public/reviewer-auth'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   ApiPublicAiChatRoute: typeof ApiPublicAiChatRoute
   ApiPublicAiDecideRoute: typeof ApiPublicAiDecideRoute
   ApiPublicAiQcRoute: typeof ApiPublicAiQcRoute
+  ApiPublicReviewerAuthRoute: typeof ApiPublicReviewerAuthRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAiQcRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/reviewer-auth': {
+      id: '/api/public/reviewer-auth'
+      path: '/api/public/reviewer-auth'
+      fullPath: '/api/public/reviewer-auth'
+      preLoaderRoute: typeof ApiPublicReviewerAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAiChatRoute: ApiPublicAiChatRoute,
   ApiPublicAiDecideRoute: ApiPublicAiDecideRoute,
   ApiPublicAiQcRoute: ApiPublicAiQcRoute,
+  ApiPublicReviewerAuthRoute: ApiPublicReviewerAuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
