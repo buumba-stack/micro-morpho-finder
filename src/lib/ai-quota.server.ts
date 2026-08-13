@@ -8,6 +8,8 @@
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { CLIENT_VERSION_HEADER, MIN_AI_CLIENT_VERSION } from "./app-version";
+import { looksLikeReviewerToken, reviewerAiDailyLimit, verifyReviewerToken } from "./reviewer-access.server";
+import { recordReviewerAiUse, reviewerAiRecentCount } from "./reviewer-usage.server";
 
 /** Abuse-prevention cap on successful AI Chat requests per rolling 24 h. */
 export const AI_CHAT_DAILY_LIMIT = 50;
@@ -50,9 +52,41 @@ export function chatRateLimited(): Response {
 }
 
 export interface AiCaller {
+  /** "user" = normal account; "reviewer" = anonymous shared-key session. */
+  kind: "user" | "reviewer";
+  /** empty string for anonymous reviewers — no identity exists for them */
   userId: string;
   unlimited: boolean;
   clientVersion: string | null;
+}
+
+export function reviewerQuotaExhausted(): Response {
+  return jsonResponse(429, {
+    error: "reviewer_ai_quota_reached",
+    message:
+      "The shared reviewer AI allowance for the current 24 hours has been reached. Local analysis, editing and exports still work. Please try again later.",
+  });
+}
+
+/**
+ * Shared (not per-reviewer) AI allowance. Returns a Response when the reviewer
+ * pool is exhausted, otherwise null.
+ */
+export async function checkReviewerAllowance(): Promise<Response | null> {
+  let used: number;
+  try {
+    used = await reviewerAiRecentCount();
+  } catch (err) {
+    return new Response(err instanceof Error ? err.message : "Usage check failed", {
+      status: 503,
+      headers: AI_CORS_HEADERS,
+    });
+  }
+  return used >= reviewerAiDailyLimit() ? reviewerQuotaExhausted() : null;
+}
+
+export async function logReviewerAiUse(feature: string, success: boolean): Promise<void> {
+  await recordReviewerAiUse(feature, success);
 }
 
 /**
@@ -64,6 +98,17 @@ export async function authenticateAiRequest(request: Request): Promise<AiCaller 
   const token = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
   if (!token) return null;
 
+  // Anonymous reviewer tokens are signed by us and carry no identity.
+  if (looksLikeReviewerToken(token)) {
+    if (!(await verifyReviewerToken(token))) return null;
+    return {
+      kind: "reviewer",
+      userId: "",
+      unlimited: false,
+      clientVersion: request.headers.get(CLIENT_VERSION_HEADER),
+    };
+  }
+
   const { data, error } = await supabaseAdmin.auth.getUser(token);
   if (error || !data.user) return null;
 
@@ -72,6 +117,7 @@ export async function authenticateAiRequest(request: Request): Promise<AiCaller 
   });
 
   return {
+    kind: "user",
     userId: data.user.id,
     unlimited: unlimited === true,
     clientVersion: request.headers.get(CLIENT_VERSION_HEADER),

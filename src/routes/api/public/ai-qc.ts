@@ -4,7 +4,9 @@ import { GatewayError, collectText, openResponsesStream, GPT5_MODEL } from "@/li
 import {
   AI_CORS_HEADERS as CORS_HEADERS,
   authenticateAiRequest,
+  checkReviewerAllowance,
   clientUpdateRequired,
+  logReviewerAiUse,
   commitReviewSuccess,
   logReviewAttempt,
   quotaExhausted,
@@ -125,8 +127,15 @@ export const Route = createFileRoute("/api/public/ai-qc")({
         }
 
         // 2. Reserve the entitlement BEFORE any gateway traffic.
+        //    Anonymous reviewers draw on a shared pool instead of account credits.
+        const reviewer = caller.kind === "reviewer";
+        if (reviewer) {
+          const denied = await checkReviewerAllowance();
+          if (denied) return denied;
+        }
+
         let remaining: number | null = null;
-        if (!caller.unlimited) {
+        if (!reviewer && !caller.unlimited) {
           try {
             remaining = await reserveReviewCredit(caller.userId);
           } catch (err) {
@@ -191,6 +200,10 @@ export const Route = createFileRoute("/api/public/ai-qc")({
           });
           const text = await collectText(stream);
           const parsed = text ? (JSON.parse(text) as Record<string, unknown>) : { reviews: [] };
+          if (reviewer) {
+            await logReviewerAiUse("ai-qc", true);
+            return Response.json({ ...parsed, credits: null }, { headers: CORS_HEADERS });
+          }
           if (!caller.unlimited) await commitReviewSuccess(caller.userId);
           await logReviewAttempt({
             userId: caller.userId,
@@ -212,6 +225,13 @@ export const Route = createFileRoute("/api/public/ai-qc")({
           const status = err instanceof GatewayError ? err.status : 500;
           console.error("ai-qc failed", err);
           // A failed call must never permanently consume a credit.
+          if (reviewer) {
+            await logReviewerAiUse("ai-qc", false);
+            return new Response(err instanceof Error ? err.message : "AI review failed", {
+              status,
+              headers: CORS_HEADERS,
+            });
+          }
           if (!caller.unlimited) remaining = await releaseReviewCredit(caller.userId);
           await logReviewAttempt({
             userId: caller.userId,
