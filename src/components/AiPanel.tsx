@@ -270,7 +270,7 @@ export function AiPanel({
             </button>
           ))}
         </div>
-        <span className="label-caps">GPT-5 · online only</span>
+        <span className="label-caps">AI-assisted · online only</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2 font-mono text-[11px]">

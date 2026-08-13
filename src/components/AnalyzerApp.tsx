@@ -713,11 +713,10 @@ export function AnalyzerApp() {
             MicroFluor <span className="text-primary">·</span> Microplastic Morphology Analyzer
           </h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            ImageJ-equivalent particle analysis for fluorescence photomicrographs: 8-bit conversion,
-            per-image threshold, binary particle detection, then Area, Perimeter, Feret's diameter,
-            bounding rectangle, aspect ratio and circularity per particle — classified as fibre,
-            sphere, pellet or fragment. Each image keeps its own settings; everything runs locally
-            in your browser and images are never uploaded.
+            Particle analysis for fluorescence photomicrographs. Reports Area, Perimeter, Feret's
+            diameter, bounding rectangle, aspect ratio and circularity per particle, classified as
+            fibre, sphere, pellet or fragment. Each image keeps its own scale and threshold; images
+            are not uploaded.
           </p>
         </div>
         <dl className="flex gap-5 font-mono text-xs text-muted-foreground">

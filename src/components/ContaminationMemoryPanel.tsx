@@ -72,13 +72,12 @@ export function ContaminationMemoryPanel({ memory, blanks }: Props) {
           </span>
         </div>
         <p className="text-[11px] leading-snug text-muted-foreground">
-          Only particles you explicitly marked as contamination are stored here — matcher
-          suggestions are kept separately and never become truth. Memory is advisory: it changes
-          what MicroFluor points out, never what it measures.
+          Stores only particles you marked as contamination. Advisory: it changes what is flagged,
+          never what is measured.
         </p>
         {!memory.userId && (
           <p className="font-mono text-[11px] text-accent">
-            Working offline: memory is stored on this machine. Sign in to keep it with your account.
+            Memory is stored on this computer only.
           </p>
         )}
       </section>
