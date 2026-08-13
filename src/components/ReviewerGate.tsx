@@ -111,10 +111,6 @@ export function ReviewerGate() {
         </button>
         {error && <p className="font-mono text-[11px] text-fibre">{error}</p>}
       </section>
-
-      <p className="text-center font-mono text-[11px] text-muted-foreground">
-        MicroFluor © 2026 Buumba Hampuwo. All Rights Reserved.
-      </p>
     </main>
   );
 }
