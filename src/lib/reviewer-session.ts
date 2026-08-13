@@ -76,3 +76,30 @@ export async function startReviewerSession(accessKey: string): Promise<ReviewerS
   store()?.setItem(STORAGE_KEY, JSON.stringify(session));
   return session;
 }
+
+/**
+ * Asks the server whether the stored token is still genuine and live. The
+ * browser never holds the signing secret, so this is the only trustworthy
+ * check. A negative answer clears the local session.
+ */
+export async function verifyReviewerSession(): Promise<boolean> {
+  const session = getReviewerSession();
+  if (!session) return false;
+  try {
+    const res = await fetch(`${aiBaseUrl()}/api/public/reviewer-verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: session.token }),
+    });
+    if (!res.ok) return false;
+    const body = (await res.json()) as { valid?: boolean };
+    if (body.valid !== true) {
+      endReviewerSession();
+      return false;
+    }
+    return true;
+  } catch {
+    // Offline / unreachable: do not silently unlock.
+    return false;
+  }
+}
