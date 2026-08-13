@@ -21,7 +21,22 @@ function buildRows(entries: ImageEntry[]): ExportRow[] {
   const rows: ExportRow[] = [];
   for (const e of entries) {
     if (!e.analysis) continue;
+    const kept = new Set(e.blankKeep ?? []);
     for (const p of e.analysis.particles) {
+      const contaminant = e.contaminantMatches?.[p.id]?.matches[0];
+      const blank = e.blankMatches?.[p.id];
+      const exclusionReason = !p.rejected
+        ? ""
+        : contaminant
+          ? "contaminant_family_match"
+          : blank
+            ? "procedural_blank_match"
+            : "manual_review";
+      const decisionSource = p.rejected
+        ? "manual_review"
+        : kept.has(p.id)
+          ? "manual_keep_despite_match"
+          : "";
       rows.push({
         file: e.name,
         tissue: e.tissue,
@@ -40,6 +55,12 @@ function buildRows(entries: ImageEntry[]): ExportRow[] {
         microfluorVersion: e.run?.microfluor_version ?? MICROFLUOR_VERSION,
         analysisRunId: e.run?.analysis_run_id ?? "",
         analysisTimestamp: e.run?.analysis_timestamp ?? "",
+        contaminantFamily: contaminant?.familyName ?? "",
+        contaminantFamilyId: contaminant?.familyId ?? "",
+        contaminantScope: contaminant?.scope ?? "",
+        contaminantMatchScore: contaminant ? contaminant.similarity : null,
+        exclusionReason,
+        decisionSource,
       });
     }
   }
@@ -160,7 +181,8 @@ export function SummaryPanel({ entries }: { entries: ImageEntry[] }) {
       </div>
       <p className="font-mono text-[11px] text-muted-foreground">
         Exports include microfluor_version {MICROFLUOR_VERSION}, analysis_run_id and
-        analysis_timestamp per image.
+        analysis_timestamp per image, plus the contaminant family, match score, exclusion reason and
+        decision source per particle.
       </p>
 
     </div>

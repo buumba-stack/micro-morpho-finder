@@ -21,6 +21,13 @@ export interface ExportRow {
   microfluorVersion: string;
   analysisRunId: string;
   analysisTimestamp: string;
+  /** contamination memory (advisory) */
+  contaminantFamily: string;
+  contaminantFamilyId: string;
+  contaminantScope: string;
+  contaminantMatchScore: number | null;
+  exclusionReason: string;
+  decisionSource: string;
 }
 
 const num = (v: number, digits = 4) =>
@@ -49,6 +56,12 @@ export function particlesCsv(rows: ExportRow[]): string {
     "microfluor_version",
     "analysis_run_id",
     "analysis_timestamp",
+    "contaminant_family",
+    "contaminant_family_id",
+    "contaminant_scope",
+    "contaminant_match_score",
+    "exclusion_reason",
+    "decision_source",
   ];
   const lines = rows.map((r) =>
     [
@@ -69,6 +82,12 @@ export function particlesCsv(rows: ExportRow[]): string {
       csvCell(r.microfluorVersion),
       csvCell(r.analysisRunId),
       csvCell(r.analysisTimestamp),
+      csvCell(r.contaminantFamily),
+      csvCell(r.contaminantFamilyId),
+      csvCell(r.contaminantScope),
+      r.contaminantMatchScore === null ? "" : num(r.contaminantMatchScore, 3),
+      csvCell(r.exclusionReason),
+      csvCell(r.decisionSource),
     ].join(","),
   );
   return [header.join(","), ...lines].join("\n");

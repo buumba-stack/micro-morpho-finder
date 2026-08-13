@@ -10,6 +10,7 @@ import type { AnalysisSettings, Particle } from "@/lib/particle-analysis";
 import { extractFeatures } from "@/lib/blank-ingest";
 import {
   retrieveBlankMatches,
+  type AppearanceFeatures,
   type BlankAnnotation,
   type BlankLibraryState,
   type RetrievalContext,
@@ -85,6 +86,25 @@ function renderSampleCrop(
   return canvas.toDataURL("image/png");
 }
 
+/** particle id -> appearance features (already-calculated measurements only) */
+export type ParticleFeatureMap = Record<number, AppearanceFeatures>;
+
+/**
+ * Extracts the appearance feature vector of every particle once, so later
+ * contaminant comparisons can run without decoding or re-segmenting the image.
+ */
+export function computeParticleFeatures(
+  imageData: ImageData,
+  particles: Particle[],
+  settings: AnalysisSettings,
+): ParticleFeatureMap {
+  const out: ParticleFeatureMap = {};
+  for (const p of particles) {
+    out[p.id] = extractFeatures(imageData, p, settings.threshold);
+  }
+  return out;
+}
+
 export function isHighConfidence(m: ParticleBlankMatch): boolean {
   const best = m.matches[0];
   return (
@@ -105,6 +125,7 @@ export function computeBlankMatches(
   settings: AnalysisSettings,
   library: BlankLibraryState,
   ctx: RetrievalContext = {},
+  featureMap?: ParticleFeatureMap | undefined,
 ): BlankMatchMap {
   const out: BlankMatchMap = {};
   if (typeof document === "undefined" || !particles.length) return out;
@@ -119,7 +140,7 @@ export function computeBlankMatches(
   src.getContext("2d")?.putImageData(imageData, 0, 0);
 
   for (const p of particles) {
-    const features = extractFeatures(imageData, p, settings.threshold);
+    const features = featureMap?.[p.id] ?? extractFeatures(imageData, p, settings.threshold);
     const found = retrieveBlankMatches(library, features, ctx, {
       limit: 3,
       confirmedOnly: true,

@@ -8,12 +8,20 @@
  */
 
 import type { ImageAnalysis } from "./particle-analysis";
-import type { BlankMatchMap } from "./blank-matching";
+import type { BlankMatchMap, ParticleFeatureMap } from "./blank-matching";
+import type { ContaminantMatchMap } from "./contaminant-matching";
 
 export interface EditResult {
   analysis: ImageAnalysis;
   blankMatches: BlankMatchMap | undefined;
   blankKeep: number[];
+  features: ParticleFeatureMap | undefined;
+  contaminantMatches: ContaminantMatchMap | undefined;
+}
+
+export interface EditExtras {
+  features?: ParticleFeatureMap | undefined;
+  contaminantMatches?: ContaminantMatchMap | undefined;
 }
 
 export function deleteParticles(
@@ -21,6 +29,7 @@ export function deleteParticles(
   blankMatches: BlankMatchMap | undefined,
   blankKeep: number[] | undefined,
   ids: number[],
+  extras: EditExtras = {},
 ): EditResult {
   const drop = new Set(ids);
   const keptOld = new Set(blankKeep ?? []);
@@ -49,9 +58,31 @@ export function deleteParticles(
     if (to !== undefined) nextKeep.push(to);
   }
 
+  let nextFeatures: ParticleFeatureMap | undefined;
+  if (extras.features) {
+    nextFeatures = {};
+    for (const [oldId, features] of Object.entries(extras.features)) {
+      const to = remap.get(Number(oldId));
+      if (to === undefined) continue;
+      nextFeatures[to] = features;
+    }
+  }
+
+  let nextContaminants: ContaminantMatchMap | undefined;
+  if (extras.contaminantMatches) {
+    nextContaminants = {};
+    for (const [oldId, match] of Object.entries(extras.contaminantMatches)) {
+      const to = remap.get(Number(oldId));
+      if (to === undefined) continue;
+      nextContaminants[to] = { ...match, particleId: to };
+    }
+  }
+
   return {
     analysis: { ...analysis, particles },
     blankMatches: nextMatches,
     blankKeep: nextKeep,
+    features: nextFeatures,
+    contaminantMatches: nextContaminants,
   };
 }

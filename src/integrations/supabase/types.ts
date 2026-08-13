@@ -113,6 +113,305 @@ export type Database = {
         }
         Relationships: []
       }
+      analysis_batches: {
+        Row: {
+          acquisition_profile: string | null
+          analysis_date: string | null
+          created_at: string
+          id: string
+          microscope: string | null
+          name: string
+          objective: string | null
+          protocol: string | null
+          solution: string | null
+          status: string
+          threshold: number | null
+          tissue: string | null
+          um_per_px: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          acquisition_profile?: string | null
+          analysis_date?: string | null
+          created_at?: string
+          id?: string
+          microscope?: string | null
+          name: string
+          objective?: string | null
+          protocol?: string | null
+          solution?: string | null
+          status?: string
+          threshold?: number | null
+          tissue?: string | null
+          um_per_px?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          acquisition_profile?: string | null
+          analysis_date?: string | null
+          created_at?: string
+          id?: string
+          microscope?: string | null
+          name?: string
+          objective?: string | null
+          protocol?: string | null
+          solution?: string | null
+          status?: string
+          threshold?: number | null
+          tissue?: string | null
+          um_per_px?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      contaminant_families: {
+        Row: {
+          batch_id: string | null
+          contaminant_type: string
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          protocol: string | null
+          scope: string
+          status: string
+          tissue: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          batch_id?: string | null
+          contaminant_type?: string
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          protocol?: string | null
+          scope?: string
+          status?: string
+          tissue?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          batch_id?: string | null
+          contaminant_type?: string
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          protocol?: string | null
+          scope?: string
+          status?: string
+          tissue?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contaminant_families_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contaminant_observations: {
+        Row: {
+          batch_id: string | null
+          created_at: string
+          family_id: string
+          id: string
+          manually_confirmed: boolean
+          notes: string | null
+          particle_features: Json
+          particle_id: string | null
+          protocol: string | null
+          source_image_id: string | null
+          source_image_name: string | null
+          source_type: string
+          tissue: string | null
+          user_id: string
+        }
+        Insert: {
+          batch_id?: string | null
+          created_at?: string
+          family_id: string
+          id?: string
+          manually_confirmed?: boolean
+          notes?: string | null
+          particle_features?: Json
+          particle_id?: string | null
+          protocol?: string | null
+          source_image_id?: string | null
+          source_image_name?: string | null
+          source_type?: string
+          tissue?: string | null
+          user_id: string
+        }
+        Update: {
+          batch_id?: string | null
+          created_at?: string
+          family_id?: string
+          id?: string
+          manually_confirmed?: boolean
+          notes?: string | null
+          particle_features?: Json
+          particle_id?: string | null
+          protocol?: string | null
+          source_image_id?: string | null
+          source_image_name?: string | null
+          source_type?: string
+          tissue?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contaminant_observations_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contaminant_observations_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "contaminant_families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      particle_decisions: {
+        Row: {
+          batch_id: string | null
+          contaminant_family_id: string | null
+          created_at: string
+          decision: string
+          decision_source: string
+          id: string
+          particle_features: Json | null
+          particle_id: string | null
+          proposed_confidence: number | null
+          proposed_prediction: string | null
+          source_image_id: string | null
+          source_image_name: string | null
+          user_id: string
+        }
+        Insert: {
+          batch_id?: string | null
+          contaminant_family_id?: string | null
+          created_at?: string
+          decision: string
+          decision_source?: string
+          id?: string
+          particle_features?: Json | null
+          particle_id?: string | null
+          proposed_confidence?: number | null
+          proposed_prediction?: string | null
+          source_image_id?: string | null
+          source_image_name?: string | null
+          user_id: string
+        }
+        Update: {
+          batch_id?: string | null
+          contaminant_family_id?: string | null
+          created_at?: string
+          decision?: string
+          decision_source?: string
+          id?: string
+          particle_features?: Json | null
+          particle_id?: string | null
+          proposed_confidence?: number | null
+          proposed_prediction?: string | null
+          source_image_id?: string | null
+          source_image_name?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "particle_decisions_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "particle_decisions_contaminant_family_id_fkey"
+            columns: ["contaminant_family_id"]
+            isOneToOne: false
+            referencedRelation: "contaminant_families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      particle_predictions: {
+        Row: {
+          batch_id: string | null
+          confidence: number | null
+          contaminant_family_id: string | null
+          created_at: string
+          details: Json | null
+          id: string
+          method: string
+          model_version: string | null
+          particle_id: string | null
+          prediction: string
+          source_image_id: string | null
+          source_image_name: string | null
+          user_id: string
+        }
+        Insert: {
+          batch_id?: string | null
+          confidence?: number | null
+          contaminant_family_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          method?: string
+          model_version?: string | null
+          particle_id?: string | null
+          prediction: string
+          source_image_id?: string | null
+          source_image_name?: string | null
+          user_id: string
+        }
+        Update: {
+          batch_id?: string | null
+          confidence?: number | null
+          contaminant_family_id?: string | null
+          created_at?: string
+          details?: Json | null
+          id?: string
+          method?: string
+          model_version?: string | null
+          particle_id?: string | null
+          prediction?: string
+          source_image_id?: string | null
+          source_image_name?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "particle_predictions_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "particle_predictions_contaminant_family_id_fkey"
+            columns: ["contaminant_family_id"]
+            isOneToOne: false
+            referencedRelation: "contaminant_families"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
