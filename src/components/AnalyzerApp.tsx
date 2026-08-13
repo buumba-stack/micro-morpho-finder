@@ -6,7 +6,11 @@ import {
   type AnalysisSettings,
 } from "@/lib/particle-analysis";
 import { isEntryStale, type ImageEntry, type RunProgress } from "@/lib/study-types";
-import { computeBlankMatches } from "@/lib/blank-matching";
+import { computeBlankMatches, computeParticleFeatures } from "@/lib/blank-matching";
+import {
+  CONTAMINANT_MATCHER_VERSION,
+  computeContaminantMatches,
+} from "@/lib/contaminant-matching";
 import { deleteParticles } from "@/lib/particle-edit";
 import { SetupPanel } from "@/components/SetupPanel";
 import { ImageList } from "@/components/ImageList";
@@ -16,6 +20,11 @@ import { BlankComparePanel } from "@/components/BlankComparePanel";
 import { SummaryPanel } from "@/components/SummaryPanel";
 import { AiPanel } from "@/components/AiPanel";
 import { BlankLibraryPanel } from "@/components/BlankLibraryPanel";
+import { BatchBar } from "@/components/BatchBar";
+import { ContaminantMatchPanel } from "@/components/ContaminantMatchPanel";
+import { ContaminationMemoryPanel } from "@/components/ContaminationMemoryPanel";
+import { MarkContaminantDialog, type MarkTarget } from "@/components/MarkContaminantDialog";
+import { useContaminationMemory } from "@/hooks/useContaminationMemory";
 import { useBlankLibrary } from "@/hooks/useBlankLibrary";
 import { countConfirmed } from "@/lib/blank-library";
 import { clearSession, loadSession, saveSession } from "@/lib/session-store";
@@ -32,11 +41,13 @@ export function AnalyzerApp() {
   const [selectedParticle, setSelectedParticle] = useState<number | null>(null);
   const [progress, setProgress] = useState<RunProgress>({ running: false, done: 0, total: 0 });
   const [aiReviews, setAiReviews] = useState<Record<string, AiReview[]>>({});
-  const [view, setView] = useState<"analysis" | "blanks">("analysis");
+  const [view, setView] = useState<"analysis" | "blanks" | "memory">("analysis");
+  const [markTarget, setMarkTarget] = useState<MarkTarget | null>(null);
   /** false until the saved batch (if any) has been restored from local storage */
   const [sessionReady, setSessionReady] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const blanks = useBlankLibrary();
+  const memory = useContaminationMemory();
 
   const setReviews = useCallback((imageId: string, list: AiReview[]) => {
     setAiReviews((prev) => ({ ...prev, [imageId]: list }));
@@ -114,6 +125,8 @@ export function AnalyzerApp() {
       run: current.draft.run,
 
       blankMatches: current.draft.blankMatches,
+      features: current.draft.features,
+      contaminantMatches: current.draft.contaminantMatches,
       blankKeep: [],
     };
   }, [current]);
@@ -163,11 +176,24 @@ export function AnalyzerApp() {
       try {
         const { imageData } = await decodeToImageData(entry.file);
         const analysis = analyzeImageData(imageData, settings);
+        const features = computeParticleFeatures(imageData, analysis.particles, settings);
         const blankMatches = computeBlankMatches(
           imageData,
           analysis.particles,
           settings,
           blanks.library,
+          {},
+          features,
+        );
+        const contaminantMatches = computeContaminantMatches(
+          features,
+          memory.families,
+          memory.observations,
+          {
+            batchId: memory.activeBatch?.id ?? null,
+            tissue: entry.tissue,
+            protocol: memory.activeBatch?.protocol ?? null,
+          },
         );
         const analysisId = `${Date.now()}`;
         const run = newAnalysisRun();
@@ -184,6 +210,8 @@ export function AnalyzerApp() {
                       runSettings: { ...settings },
                       analysisId,
                       blankMatches,
+                      features,
+                      contaminantMatches,
                       run,
                       createdAt: new Date().toISOString(),
                     },
@@ -196,6 +224,8 @@ export function AnalyzerApp() {
                     analysisId,
                     run,
                     blankMatches,
+                    features,
+                    contaminantMatches,
                     blankKeep: [],
                     draft: undefined,
                     error: undefined,
@@ -204,6 +234,22 @@ export function AnalyzerApp() {
           ),
         );
 
+        if (mode === "commit") {
+          // advisory matcher output — stored apart from confirmed decisions
+          memory.recordPredictions(
+            Object.values(contaminantMatches).map((m) => ({
+              particleId: m.particleId,
+              sourceImageId: entry.id,
+              sourceImageName: entry.name,
+              tissue: entry.tissue,
+              method: "blank_matcher",
+              prediction: "possible_contaminant",
+              confidence: m.similarity,
+              contaminantFamilyId: m.matches[0]?.familyId ?? null,
+              modelVersion: CONTAMINANT_MATCHER_VERSION,
+            })),
+          );
+        }
       } catch (err) {
         setEntries((prev) =>
           prev.map((e) =>
@@ -226,7 +272,7 @@ export function AnalyzerApp() {
         });
       }
     },
-    [blanks.library],
+    [blanks.library, memory],
   );
 
   const runList = useCallback(
@@ -272,7 +318,8 @@ export function AnalyzerApp() {
               analysisId: e.draft.analysisId,
               run: e.draft.run,
               blankMatches: e.draft.blankMatches,
-
+              features: e.draft.features,
+              contaminantMatches: e.draft.contaminantMatches,
               blankKeep: [],
               revision: (e.revision ?? 0) + 1,
               updatedAt: new Date().toISOString(),
@@ -368,14 +415,26 @@ export function AnalyzerApp() {
         prev.map((e) => {
           if (e.id !== selectedImage) return e;
           if (e.draft) {
-            const r = deleteParticles(e.draft.analysis, e.draft.blankMatches, [], [particleId]);
+            const r = deleteParticles(e.draft.analysis, e.draft.blankMatches, [], [particleId], {
+              features: e.draft.features,
+              contaminantMatches: e.draft.contaminantMatches,
+            });
             return {
               ...e,
-              draft: { ...e.draft, analysis: r.analysis, blankMatches: r.blankMatches },
+              draft: {
+                ...e.draft,
+                analysis: r.analysis,
+                blankMatches: r.blankMatches,
+                features: r.features,
+                contaminantMatches: r.contaminantMatches,
+              },
             };
           }
           if (!e.analysis) return e;
-          const r = deleteParticles(e.analysis, e.blankMatches, e.blankKeep, [particleId]);
+          const r = deleteParticles(e.analysis, e.blankMatches, e.blankKeep, [particleId], {
+            features: e.features,
+            contaminantMatches: e.contaminantMatches,
+          });
           return {
             ...e,
             draft: {
@@ -383,6 +442,8 @@ export function AnalyzerApp() {
               runSettings: { ...(e.runSettings ?? e.settings) },
               analysisId: e.analysisId ?? `${Date.now()}`,
               blankMatches: r.blankMatches,
+              features: r.features,
+              contaminantMatches: r.contaminantMatches,
               run: newAnalysisRun(),
               createdAt: new Date().toISOString(),
             },
@@ -405,6 +466,17 @@ export function AnalyzerApp() {
   const keepDespiteBlank = useCallback(
     (particleId: number) => {
       if (!selectedImage) return;
+      // negative feedback for the blank matcher, recorded as reviewer truth
+      memory.recordDecision({
+        particleId,
+        sourceImageId: selectedImage,
+        sourceImageName: current?.name ?? null,
+        tissue: current?.tissue ?? null,
+        features: displayEntry?.features?.[particleId],
+        decision: "keep_genuine_particle",
+        proposedPrediction: "procedural_blank_match",
+        proposedConfidence: displayEntry?.blankMatches?.[particleId]?.similarity ?? null,
+      });
       setEntries((prev) =>
         prev.map((e) =>
           e.id === selectedImage
@@ -424,7 +496,7 @@ export function AnalyzerApp() {
         ),
       );
     },
-    [selectedImage],
+    [current, displayEntry, memory, selectedImage],
   );
 
   const excludeAsBlank = useCallback(
@@ -449,6 +521,96 @@ export function AnalyzerApp() {
       .map((m) => m.particleId);
     if (ids.length) applyExclusions(current.id, ids);
   }, [applyExclusions, current]);
+
+  /** Opens the "mark as contaminant" dialog for one particle of the current image. */
+  const openMark = useCallback(
+    (particleId: number) => {
+      if (!current) return;
+      const match = displayEntry?.contaminantMatches?.[particleId];
+      setMarkTarget({
+        particleId,
+        sourceImageId: current.id,
+        sourceImageName: current.name,
+        tissue: current.tissue,
+        features: displayEntry?.features?.[particleId],
+        sourceType: current.tissue === "Blank" ? "procedural_blank" : "sample_image",
+        proposedPrediction: match ? "possible_contaminant" : null,
+        proposedConfidence: match?.similarity ?? null,
+      });
+    },
+    [current, displayEntry],
+  );
+
+  const recordParticleDecision = useCallback(
+    (particleId: number, decision: "confirmed_contaminant" | "keep_genuine_particle", proposed: string | null) => {
+      if (!current) return;
+      const match = displayEntry?.contaminantMatches?.[particleId];
+      memory.recordDecision({
+        particleId,
+        sourceImageId: current.id,
+        sourceImageName: current.name,
+        tissue: current.tissue,
+        features: displayEntry?.features?.[particleId],
+        decision,
+        contaminantFamilyId: match?.matches[0]?.familyId ?? null,
+        proposedPrediction: proposed,
+        proposedConfidence: match?.similarity ?? null,
+      });
+    },
+    [current, displayEntry, memory],
+  );
+
+  /** Excludes a particle because it matches a remembered contaminant family. */
+  const excludeAsContaminant = useCallback(
+    (particleId: number) => {
+      setRejected(particleId, true);
+      recordParticleDecision(particleId, "confirmed_contaminant", "possible_contaminant");
+    },
+    [recordParticleDecision, setRejected],
+  );
+
+  /** Negative feedback: the reviewer overrules a contaminant suggestion. */
+  const keepAsGenuine = useCallback(
+    (particleId: number) => {
+      setRejected(particleId, false);
+      recordParticleDecision(particleId, "keep_genuine_particle", "possible_contaminant");
+    },
+    [recordParticleDecision, setRejected],
+  );
+
+  /**
+   * Re-compares already-analysed particles whenever the memory or the active
+   * batch changes. Uses the stored feature vectors only — no re-segmentation,
+   * so measurements and classifications never change.
+   */
+  useEffect(() => {
+    if (!memory.loaded) return;
+    setEntries((prev) =>
+      prev.map((e) => {
+        if (!e.features && !e.draft?.features) return e;
+        const ctx = {
+          batchId: memory.activeBatch?.id ?? null,
+          tissue: e.tissue,
+          protocol: memory.activeBatch?.protocol ?? null,
+        };
+        const next = e.features
+          ? computeContaminantMatches(e.features, memory.families, memory.observations, ctx)
+          : undefined;
+        const nextDraft = e.draft?.features
+          ? computeContaminantMatches(e.draft.features, memory.families, memory.observations, ctx)
+          : undefined;
+        const changed =
+          JSON.stringify(next ?? {}) !== JSON.stringify(e.contaminantMatches ?? {}) ||
+          JSON.stringify(nextDraft ?? {}) !== JSON.stringify(e.draft?.contaminantMatches ?? {});
+        if (!changed) return e;
+        return {
+          ...e,
+          contaminantMatches: next,
+          draft: e.draft ? { ...e.draft, contaminantMatches: nextDraft } : e.draft,
+        };
+      }),
+    );
+  }, [memory.loaded, memory.families, memory.observations, memory.activeBatch]);
 
   const removeEntry = useCallback((id: string) => {
     setEntries((prev) => prev.filter((e) => e.id !== id));
@@ -540,6 +702,10 @@ export function AnalyzerApp() {
           [
             ["analysis", "Analysis"],
             ["blanks", `Blank library${blankConfirmed ? ` · ${blankConfirmed} confirmed` : ""}`],
+            [
+              "memory",
+              `Contamination memory${memory.families.length ? ` · ${memory.families.length}` : ""}`,
+            ],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -606,11 +772,17 @@ export function AnalyzerApp() {
       )}
 
       {view === "blanks" && <BlankLibraryPanel settings={defaults} api={blanks} />}
+      {view === "memory" && <ContaminationMemoryPanel memory={memory} blanks={blanks} />}
 
       <div
         className={`${view === "analysis" ? "grid" : "hidden"} min-h-0 flex-1 gap-4 xl:grid-cols-[300px_minmax(0,1fr)_360px]`}
       >
         <div className="flex min-h-0 flex-col gap-4">
+          <BatchBar
+            memory={memory}
+            settings={activeSettings}
+            tissues={[...new Set(entries.map((e) => e.tissue))]}
+          />
           <SetupPanel
             settings={activeSettings}
             onChange={patchSettings}
@@ -652,6 +824,14 @@ export function AnalyzerApp() {
             onKeep={keepDespiteBlank}
             onExcludeAllHighConfidence={excludeAllHighConfidenceBlanks}
           />
+          <ContaminantMatchPanel
+            entry={displayEntry}
+            selectedId={selectedParticle}
+            onSelect={setSelectedParticle}
+            onExclude={excludeAsContaminant}
+            onKeep={keepAsGenuine}
+            onMark={openMark}
+          />
 
           <SummaryPanel entries={entries} />
           <AiPanel
@@ -679,6 +859,8 @@ export function AnalyzerApp() {
               particles={displayEntry?.analysis?.particles ?? []}
               blankMatches={displayEntry?.blankMatches}
               blankKeep={displayEntry?.blankKeep}
+              contaminantMatches={displayEntry?.contaminantMatches}
+              onMark={openMark}
 
               selectedId={selectedParticle}
               onSelect={setSelectedParticle}
@@ -688,6 +870,15 @@ export function AnalyzerApp() {
           </div>
         </div>
       </div>
+
+      {markTarget && (
+        <MarkContaminantDialog
+          target={markTarget}
+          memory={memory}
+          onClose={() => setMarkTarget(null)}
+          onMarked={(id) => setRejected(id, true)}
+        />
+      )}
 
       <footer className="label-caps pb-2">
         Classification: fibre AR ≤ 0.33 or ≥ 3 · sphere circ &gt; 0.90 · pellet 0.60 &lt; circ ≤
