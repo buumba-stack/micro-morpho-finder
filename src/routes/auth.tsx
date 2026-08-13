@@ -12,7 +12,7 @@ const PREPUB =
 // avoids describing unpublished functionality.
 const DESC = PREPUB
   ? "Account sign-in for MicroFluor research software."
-  : "Sign in to MicroFluor to use the GPT-5 AI review and dataset chat. Local particle analysis works without an account.";
+  : "Sign in to use the MicroFluor AI review and dataset chat. Particle analysis works without an account.";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
