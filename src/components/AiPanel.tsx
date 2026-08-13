@@ -17,6 +17,11 @@ import { buildParticleCrops } from "@/lib/particle-crops";
 import { datasetDigest } from "@/lib/dataset-digest";
 import { isOnline, requestQc, streamChat, type AiReview } from "@/lib/ai-client";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  endReviewerSession,
+  getReviewerSession,
+  startReviewerSession,
+} from "@/lib/reviewer-session";
 
 
 const BATCH = 12;
@@ -59,6 +64,33 @@ export function AiPanel({
   const [error, setError] = useState("");
   const { loading: authLoading, unavailable, account, refresh, signOut } = useAuth();
   const [credits, setCredits] = useState<number | null>(null);
+  /** anonymous reviewer session (shared access key) — identity-free */
+  const [reviewerUntil, setReviewerUntil] = useState<string | null>(
+    () => getReviewerSession()?.expiresAt ?? null,
+  );
+  const [reviewerKey, setReviewerKey] = useState("");
+  const [reviewerBusy, setReviewerBusy] = useState(false);
+  const [reviewerError, setReviewerError] = useState("");
+
+  const submitReviewerKey = useCallback(async () => {
+    setReviewerBusy(true);
+    setReviewerError("");
+    try {
+      const session = await startReviewerSession(reviewerKey.trim());
+      setReviewerUntil(session.expiresAt);
+      setReviewerKey(""); // the plaintext key is never retained
+    } catch (err) {
+      setReviewerError(err instanceof Error ? err.message : "Access key not recognized.");
+    } finally {
+      setReviewerBusy(false);
+    }
+  }, [reviewerKey]);
+
+  const stopReviewer = useCallback(() => {
+    endReviewerSession();
+    setReviewerUntil(null);
+    setReviewerError("");
+  }, []);
 
   useEffect(() => {
     setCredits(account?.creditsRemaining ?? null);
@@ -243,10 +275,6 @@ export function AiPanel({
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2 font-mono text-[11px]">
         {authLoading ? (
           <span className="text-muted-foreground">Checking AI account…</span>
-        ) : unavailable ? (
-          <span className="text-fibre">
-            AI account service unreachable — image analysis and exports still work offline.
-          </span>
         ) : account ? (
           <>
             <span className="truncate text-muted-foreground">{account.email ?? account.userId}</span>
@@ -259,16 +287,60 @@ export function AiPanel({
               Sign out
             </button>
           </>
-        ) : (
+        ) : reviewerUntil ? (
           <>
-            <span className="text-accent">Sign in to use the AI features (5 free reviews).</span>
-            <a href={authHref} {...authLinkProps} className="btn-primary ml-auto px-2 py-0.5">
-              Sign in
-            </a>
-            <button className="btn-ghost px-2 py-0.5" onClick={() => void refresh()}>
-              Refresh
+            <span className="text-sphere">Authorized reviewer session</span>
+            <span className="text-muted-foreground">
+              until {new Date(reviewerUntil).toLocaleString()} · contamination memory local only
+            </span>
+            <button className="btn-ghost ml-auto px-2 py-0.5" onClick={stopReviewer}>
+              End reviewer session
             </button>
           </>
+        ) : (
+          <div className="flex w-full flex-col gap-2">
+            {unavailable ? (
+              <span className="text-fibre">
+                AI account service unreachable — image analysis and exports still work offline.
+              </span>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-accent">Sign in to use the AI features (5 free reviews).</span>
+                <a href={authHref} {...authLinkProps} className="btn-primary ml-auto px-2 py-0.5">
+                  Sign in
+                </a>
+                <button className="btn-ghost px-2 py-0.5" onClick={() => void refresh()}>
+                  Refresh
+                </button>
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-2 border-t border-border pt-2">
+              <span className="label-caps">or reviewer / authorized access</span>
+              <input
+                className="field field-focus w-56 px-2 py-0.5"
+                type="password"
+                autoComplete="off"
+                placeholder="Access key"
+                value={reviewerKey}
+                onChange={(e) => setReviewerKey(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && reviewerKey.trim() && !reviewerBusy)
+                    void submitReviewerKey();
+                }}
+              />
+              <button
+                className="btn-primary px-2 py-0.5"
+                disabled={reviewerBusy || reviewerKey.trim().length < 8}
+                onClick={() => void submitReviewerKey()}
+              >
+                {reviewerBusy ? "Checking…" : "Continue"}
+              </button>
+              <span className="text-muted-foreground">
+                No account needed. Reviewer contamination memory stays on this computer.
+              </span>
+            </div>
+            {reviewerError && <span className="text-fibre">{reviewerError}</span>}
+          </div>
         )}
       </div>
 

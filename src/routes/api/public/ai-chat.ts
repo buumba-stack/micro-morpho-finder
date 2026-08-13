@@ -6,6 +6,8 @@ import {
   AI_CORS_HEADERS as CORS_HEADERS,
   authenticateAiRequest,
   chatRateLimited,
+  checkReviewerAllowance,
+  logReviewerAiUse,
   chatRecentCount,
   clientUpdateRequired,
   logChatAttempt,
@@ -55,8 +57,14 @@ export const Route = createFileRoute("/api/public/ai-chat")({
           });
         }
 
+        const reviewer = caller.kind === "reviewer";
+        if (reviewer) {
+          const denied = await checkReviewerAllowance();
+          if (denied) return denied;
+        }
+
         // Abuse-prevention cap only — AI Chat never touches AI Review credits.
-        if (!caller.unlimited) {
+        if (!reviewer && !caller.unlimited) {
           let used: number;
           try {
             used = await chatRecentCount(caller.userId);
@@ -101,13 +109,15 @@ export const Route = createFileRoute("/api/public/ai-chat")({
         } catch (err) {
           const status = err instanceof GatewayError ? err.status : 500;
           console.error("ai-chat failed", err);
-          await logChatAttempt({
-            userId: caller.userId,
-            success: false,
-            ownerExempt: caller.unlimited,
-            clientVersion: caller.clientVersion,
-            model: GPT5_MODEL,
-          });
+          if (reviewer) await logReviewerAiUse("ai-chat", false);
+          else
+            await logChatAttempt({
+              userId: caller.userId,
+              success: false,
+              ownerExempt: caller.unlimited,
+              clientVersion: caller.clientVersion,
+              model: GPT5_MODEL,
+            });
           return new Response(err instanceof Error ? err.message : "AI chat failed", {
             status,
             headers: CORS_HEADERS,
@@ -127,6 +137,10 @@ export const Route = createFileRoute("/api/public/ai-chat")({
                 }
               }
               controller.close();
+              if (reviewer) {
+                await logReviewerAiUse("ai-chat", true);
+                return;
+              }
               await logChatAttempt({
                 userId: caller.userId,
                 success: true,
@@ -136,6 +150,11 @@ export const Route = createFileRoute("/api/public/ai-chat")({
               });
             } catch (err) {
               console.error("ai-chat stream error", err);
+              if (reviewer) {
+                await logReviewerAiUse("ai-chat", false);
+                controller.error(err);
+                return;
+              }
               await logChatAttempt({
                 userId: caller.userId,
                 success: false,

@@ -8,6 +8,7 @@
  */
 
 import { getAuthClient } from "@/hooks/useAuth";
+import { isReviewerSessionActive } from "@/lib/reviewer-session";
 import type { AppearanceFeatures } from "@/lib/blank-library";
 import {
   type AnalysisBatch,
@@ -59,6 +60,8 @@ function mergeNewest<T extends { id: string; updated_at: string; synced: boolean
 
 /** Pushes unsynced rows, then replaces local rows with the account copy. */
 export async function syncMemory(local: MemoryState): Promise<SyncResult> {
+  // Anonymous reviewer sessions are local-only: never read or write account data.
+  if (isReviewerSessionActive()) return { userId: null, state: null, error: null };
   const client = await getAuthClient();
   if (!client) return { userId: null, state: null, error: "offline" };
 

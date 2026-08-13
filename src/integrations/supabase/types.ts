@@ -457,6 +457,45 @@ export type Database = {
         }
         Relationships: []
       }
+      reviewer_ai_usage: {
+        Row: {
+          created_at: string
+          feature: string
+          id: string
+          success: boolean
+        }
+        Insert: {
+          created_at?: string
+          feature: string
+          id?: string
+          success?: boolean
+        }
+        Update: {
+          created_at?: string
+          feature?: string
+          id?: string
+          success?: boolean
+        }
+        Relationships: []
+      }
+      reviewer_auth_attempts: {
+        Row: {
+          created_at: string
+          id: string
+          success: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          success: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          success?: boolean
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

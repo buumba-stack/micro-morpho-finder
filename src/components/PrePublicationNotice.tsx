@@ -21,7 +21,9 @@ export function PrePublicationNotice() {
         The web application is not currently available for public access. Access will be provided
         following the appropriate research release.
       </p>
-      <p className="font-mono text-[11px] text-muted-foreground">© MicroFluor</p>
+      <p className="font-mono text-[11px] text-muted-foreground">
+        MicroFluor © 2026 Buumba Hampuwo. All Rights Reserved.
+      </p>
     </main>
   );
 }
