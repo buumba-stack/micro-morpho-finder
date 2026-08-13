@@ -879,7 +879,7 @@ export function AnalyzerApp() {
             onExcludeAllHighConfidence={excludeAllHighConfidenceContaminants}
           />
 
-          <SummaryPanel entries={entries} />
+          <SummaryPanel entries={entries} decisions={memory.decisions} />
           <AiPanel
             entry={current}
             entries={entries}
