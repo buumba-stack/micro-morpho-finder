@@ -100,8 +100,11 @@ export function SummaryPanel({
   entries: ImageEntry[];
   decisions?: ParticleDecisionRow[];
 }) {
+  const [exportingImages, setExportingImages] = useState(false);
   const rows = useMemo(() => buildRows(entries, decisions), [entries, decisions]);
   const accepted = rows.filter((r) => r.status === "accepted");
+  const analysedEntries = entries.filter((e) => e.analysis);
+
 
   const tissues = useMemo(() => {
     const map = new Map<string, ExportRow[]>();
