@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { MORPHOLOGIES } from "@/lib/particle-analysis";
 import type { ImageEntry } from "@/lib/study-types";
 import {
@@ -7,6 +7,7 @@ import {
   summaryCsv,
   type ExportRow,
 } from "@/lib/export-results";
+import { exportFinalAcceptedImages } from "@/lib/export-images";
 import { MICROFLUOR_VERSION } from "@/lib/app-version";
 import type { ParticleDecisionRow } from "@/lib/contamination-memory";
 import {
@@ -100,8 +101,11 @@ export function SummaryPanel({
   entries: ImageEntry[];
   decisions?: ParticleDecisionRow[];
 }) {
+  const [exportingImages, setExportingImages] = useState(false);
   const rows = useMemo(() => buildRows(entries, decisions), [entries, decisions]);
   const accepted = rows.filter((r) => r.status === "accepted");
+  const analysedEntries = entries.filter((e) => e.analysis);
+
 
   const tissues = useMemo(() => {
     const map = new Map<string, ExportRow[]>();
@@ -208,6 +212,20 @@ export function SummaryPanel({
           onClick={() => downloadText(`summary_by_tissue_${stamp}.csv`, summaryCsv(rows, "tissue"))}
         >
           Summary per tissue
+        </button>
+        <button
+          className="btn-ghost"
+          disabled={!analysedEntries.length || exportingImages}
+          onClick={async () => {
+            setExportingImages(true);
+            try {
+              await exportFinalAcceptedImages(analysedEntries);
+            } finally {
+              setExportingImages(false);
+            }
+          }}
+        >
+          {exportingImages ? "Exporting images…" : "Export final accepted images"}
         </button>
       </div>
       <p className="font-mono text-[11px] text-muted-foreground">
