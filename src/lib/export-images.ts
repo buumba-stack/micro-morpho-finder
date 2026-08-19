@@ -12,10 +12,12 @@ import { decodeToImageData, MORPHOLOGIES, type Morphology } from "./particle-ana
 import { morphologyColor } from "./morphology-colors";
 import type { ImageEntry } from "./study-types";
 
-const PAD_X = 28;
-const PAD_Y = 20;
-const FONT_SIZE = 26;
-const SEP = "  |  ";
+const FONT_STACK = 'Helvetica, Arial, sans-serif';
+const SEP = "   |   ";
+
+function clamp(v: number, lo: number, hi: number) {
+  return Math.min(hi, Math.max(lo, v));
+}
 
 export function safeFileStem(name: string): string {
   const stem = name.replace(/\.[^./\\]+$/, "");
@@ -26,23 +28,17 @@ function label(m: string): string {
   return m === "fibre" ? "Fibres" : m === "sphere" ? "Spheres" : m === "pellet" ? "Pellets" : "Fragments";
 }
 
-function truncateFilename(ctx: CanvasRenderingContext2D, name: string, maxWidth: number): string {
-  if (ctx.measureText(name).width <= maxWidth) return name;
-  let low = 0;
-  let high = name.length;
-  while (low < high) {
-    const mid = Math.ceil((low + high) / 2);
-    const candidate = name.slice(0, mid) + "..." + name.slice(name.lastIndexOf(".") > mid ? name.lastIndexOf(".") : 0);
-    if (ctx.measureText(candidate).width <= maxWidth) {
-      low = mid;
-    } else {
-      high = mid - 1;
-    }
-  }
+/** Shortens only the filename stem, keeping the extension, until it fits. */
+function fitFilename(ctx: CanvasRenderingContext2D, name: string, budget: number): string {
+  if (ctx.measureText(name).width <= budget) return name;
   const extIdx = name.lastIndexOf(".");
   const ext = extIdx > 0 ? name.slice(extIdx) : "";
-  const stem = name.slice(0, Math.max(0, low - 1));
-  return stem + "..." + ext;
+  const stem = extIdx > 0 ? name.slice(0, extIdx) : name;
+  for (let keep = stem.length - 1; keep > 0; keep--) {
+    const candidate = `${stem.slice(0, keep)}...${ext}`;
+    if (ctx.measureText(candidate).width <= budget) return candidate;
+  }
+  return `...${ext}`;
 }
 
 /** Renders one final PNG for an analysed image. Returns null when unavailable. */
@@ -60,23 +56,32 @@ export async function renderFinalAcceptedImage(entry: ImageEntry): Promise<Blob 
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
 
-  ctx.font = `${FONT_SIZE}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-  const summaryParts = [
-    `Image: ${entry.name}`,
+  // typography scales with the micrograph so the footer stays readable at any resolution
+  const footerFont = Math.round(clamp(imageData.width * 0.02, 24, 34));
+  const padX = Math.round(footerFont * 1.4);
+  const padY = Math.round(footerFont * 0.8);
+  const footerHeight = padY * 2 + Math.round(footerFont * 1.2);
+  const numberFont = Math.round(clamp(imageData.width * 0.015, 16, 26));
+
+  const countParts = [
     `Total MPs: ${accepted.length}`,
     ...counts.map(([m, n]) => `${label(m)}: ${n}`),
   ];
-  const fullSummary = summaryParts.join(SEP);
-  const textWidth = ctx.measureText(fullSummary).width;
-  const availableWidth = Math.max(imageData.width, textWidth + PAD_X * 2);
 
-  const summaryHeight = PAD_Y * 2 + FONT_SIZE;
-  canvas.width = availableWidth;
-  canvas.height = imageData.height + summaryHeight;
+  ctx.font = `500 ${footerFont}px ${FONT_STACK}`;
+  const countsText = countParts.join(SEP);
+  const countsWidth = ctx.measureText(countsText).width;
+  const prefixWidth = ctx.measureText(`Image: `).width + ctx.measureText(SEP).width;
+  const fullWidth = prefixWidth + ctx.measureText(entry.name).width + countsWidth;
+  const canvasWidth = Math.max(imageData.width, Math.min(fullWidth + padX * 2, imageData.width));
 
+  canvas.width = canvasWidth;
+  canvas.height = imageData.height + footerHeight;
+
+  // original micrograph pixels, untouched
   ctx.putImageData(imageData, 0, 0);
 
-  // same outline geometry and colours as the reviewed viewer
+  // accepted-particle outlines, same geometry and colours as the reviewed viewer
   const lw = Math.max(1, Math.round(Math.max(imageData.width, imageData.height) / 700));
   ctx.lineJoin = "round";
   ctx.lineWidth = lw * 1.5;
@@ -90,25 +95,43 @@ export async function renderFinalAcceptedImage(entry: ImageEntry): Promise<Blob 
     ctx.stroke();
   }
 
-  // single horizontal summary strip
+  // accepted-particle numbers, placed just outside the bounding box with a dark halo
+  ctx.font = `500 ${numberFont}px ${FONT_STACK}`;
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = Math.max(2, numberFont / 6);
+  ctx.strokeStyle = "rgba(0,0,0,0.85)";
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, imageData.height, canvas.width, summaryHeight);
-  ctx.fillStyle = "#111111";
-  ctx.textBaseline = "middle";
-  ctx.font = `${FONT_SIZE}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+  for (const p of accepted) {
+    const text = String(p.id);
+    const w = ctx.measureText(text).width;
+    let x = p.bxPx + p.bwPx + Math.round(numberFont * 0.25);
+    let y = p.byPx - Math.round(numberFont * 0.25);
+    if (x + w > imageData.width - 2) x = Math.max(2, p.bxPx - w - Math.round(numberFont * 0.25));
+    if (y - numberFont < 2) y = Math.min(imageData.height - 2, p.byPx + p.bhPx + numberFont);
+    ctx.strokeText(text, x, y);
+    ctx.fillText(text, x, y);
+  }
 
-  const maxTextWidth = availableWidth - PAD_X * 2;
-  const displayName = truncateFilename(ctx, entry.name, maxTextWidth / 3);
-  const displayParts = [
-    `Image: ${displayName}`,
-    `Total MPs: ${accepted.length}`,
-    ...counts.map(([m, n]) => `${label(m)}: ${n}`),
-  ];
-  const displaySummary = displayParts.join(SEP);
-  const finalTextWidth = ctx.measureText(displaySummary).width;
-  const x = finalTextWidth <= maxTextWidth ? PAD_X : Math.max(PAD_X, (availableWidth - finalTextWidth) / 2);
-  const y = imageData.height + summaryHeight / 2;
-  ctx.fillText(displaySummary, x, y);
+  // clean white horizontal information strip
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, imageData.height, canvas.width, footerHeight);
+  ctx.fillStyle = "#d4d4d4";
+  ctx.fillRect(0, imageData.height, canvas.width, Math.max(1, Math.round(lw)));
+
+  ctx.font = `500 ${footerFont}px ${FONT_STACK}`;
+  ctx.fillStyle = "#1a1a1a";
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+
+  const budget = canvas.width - padX * 2;
+  const nameBudget = Math.max(footerFont * 3, budget - countsWidth - prefixWidth);
+  const displayName = fitFilename(ctx, entry.name, nameBudget);
+  const line = `Image: ${displayName}${SEP}${countsText}`;
+  const lineWidth = ctx.measureText(line).width;
+  const x = lineWidth <= budget ? padX : Math.max(padX, (canvas.width - lineWidth) / 2);
+  ctx.fillText(line, x, imageData.height + footerHeight / 2);
 
   return await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
 }
