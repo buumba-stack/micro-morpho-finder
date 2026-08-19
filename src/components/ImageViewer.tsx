@@ -1,18 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { decodeToImageData, thresholdPreview, type Particle } from "@/lib/particle-analysis";
+import { MORPH_VAR, cssColor } from "@/lib/morphology-colors";
 import type { ImageEntry } from "@/lib/study-types";
 
-const MORPH_VAR: Record<string, string> = {
-  fibre: "--fibre",
-  sphere: "--sphere",
-  pellet: "--pellet",
-  fragment: "--fragment",
-};
-
-function cssColor(name: string): string {
-  if (typeof window === "undefined") return "#fff";
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#fff";
-}
 
 interface Props {
   entry: ImageEntry | undefined;
