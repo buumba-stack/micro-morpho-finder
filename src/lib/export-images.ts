@@ -72,10 +72,8 @@ export async function renderFinalAcceptedImage(entry: ImageEntry): Promise<Blob 
   const countsText = countParts.join(SEP);
   const countsWidth = ctx.measureText(countsText).width;
   const prefixWidth = ctx.measureText(`Image: `).width + ctx.measureText(SEP).width;
-  const fullWidth = prefixWidth + ctx.measureText(entry.name).width + countsWidth;
-  const canvasWidth = Math.max(imageData.width, Math.min(fullWidth + padX * 2, imageData.width));
 
-  canvas.width = canvasWidth;
+  canvas.width = imageData.width;
   canvas.height = imageData.height + footerHeight;
 
   // original micrograph pixels, untouched
