@@ -1,0 +1,13 @@
+MICROFLUOR THIRD-PARTY SOFTWARE NOTICES
+
+MicroFluor is released under the MIT License (see LICENSE).
+
+MicroFluor incorporates and/or is distributed with third-party open-source
+components, including among others: Electron, Chromium, React, TanStack,
+Radix UI, Tailwind CSS, Recharts, Zod and other JavaScript, web and native
+dependencies.
+
+These components are not owned by Buumba Hampuwo and remain subject to their
+own copyright notices and license terms, which are included with the
+application (THIRD-PARTY-LICENSES folder) or within the respective dependency
+distributions.

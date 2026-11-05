@@ -1,26 +1,76 @@
-# Fish Microplastic Finder
+# MicroFluor
 
-have 400 florencnece photomicrographs, of microplastics pictures from liver anmd instetine of wild fish, the microplastics are of different sizes and shapes. I want use AI agentic or automatic process to count the microplastcs from the pictures, define a mophology using a defiend criteria Particle morphology was determined from fluorescence micrographs using ImageJ version 1.54f (National Institutes of Health, USA). The image scale was calibrated using Analyze > Set Scale. Images were converted to 8-bit grayscale, and a threshold was applied to separate fluorescent particles from the background. The thresholded images were converted to binary images, and individual particles were measured using Analyze > Analyze Particles. Under Analyze > Set Measurements, Area, Perimeter, Shape Descriptors, Feret's Diameter, and Bounding Rectangle were selected. For each accepted particle, ImageJ recorded area, perimeter, width, height, Feret's diameter, aspect ratio, and circularity. Circularity was calculated by ImageJ as: Circularity = 4 × π × Area / Perimeter². A value of 1 represents a perfect circle, whereas lower values indicate increasingly irregular or elongated shapes. Aspect ratio was calculated as: Aspect ratio = Width / Height. Particles were classified as fibres when the aspect ratio was ≤ 0.33 or ≥ 3; as spheres when the aspect ratio was > 0.33 and < 3 and circularity was > 0.90; as pellets when the aspect ratio was > 0.33 and < 3 and circularity was > 0.60 and ≤ 0.90; and as fragments when the aspect ratio was > 0.33 and < 3 and circularity was ≤ 0.60. Each automated classification was visually checked against the original fluorescence image. Overlapping particles, particles touching the image border, objects with incomplete outlines, and objects with fluorescence inconsistent with the positive controls were excluded.
+**Image-analysis and quality-control software for first-line, fluorescence-based screening of microplastic-like particles in biological samples.**
 
-This project was built with [Lovable](https://lovable.dev).
+MicroFluor was developed as part of an integrated fluorescence workflow for screening low-micrometre microplastics in fish tissues (Hampuwo et al., in preparation; see [Citation](#citation)). It turns fluorescence micrographs into particle counts, sizes and shape classes, and checks every candidate particle against documented procedural-blank artefacts before it is accepted.
 
-**Live app**: https://micro-morpho-finder.lovable.app
+- **Web application:** https://fishmicroplasticfinder.com/
+- **Windows desktop build:** see [Releases](../../releases)
+- **Licence:** MIT
 
-## Build with Lovable
+> MicroFluor is a screening tool. Fluorescent stains are not polymer-specific, so accepted detections are reported as *microplastic-like particles*. Use polymer-specific methods (e.g. µFTIR, Raman, Py-GC/MS) where chemical confirmation is required.
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/7c28e508-642b-4ca7-9872-79dbf40d3aff).
+---
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+## What it does
 
-## Development
+1. **Calibration.** Converts pixels to micrometres using a stage-micrometre calibration.
+2. **Segmentation.** Each image is thresholded individually and connected fluorescent objects are segmented.
+3. **Morphometrics.** For every object: area, perimeter, width, height, Feret diameters, aspect ratio (AR = width/height) and circularity.
+4. **Shape classification.**
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+   | Class | Criterion |
+   |---|---|
+   | Fibre | AR ≤ 0.33 or AR ≥ 3 |
+   | Sphere | circularity > 0.90, **or** circularity > 0.60 with AR 0.85–1.18 and min/max Feret ratio ≥ 0.85 |
+   | Pellet | circularity > 0.60, not meeting sphere criteria |
+   | Fragment | circularity ≤ 0.60 |
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+   Criteria adapted from Liu et al. (2022) and Pagliaccia et al. (2025), with the sphere criterion modified for fluorescence microscopy.
+
+5. **Blank and contamination screening (QA/QC).** Each candidate is compared with every artefact in the loaded procedural-blank library and the recurrent-contaminant memory:
+   - **Flagged match:** similarity ≥ 0.70 with agreement in ≥ 5 features
+   - **High-confidence match:** similarity ≥ 0.85 with agreement in ≥ 7 features
+
+   Flagged candidates are shown for analyst review. **The analyst makes the final accept/reject decision.**
+
+6. **Export.** Accepted particles with morphometrics and class labels, for abundance (particles g⁻¹), size-distribution and shape analyses.
+
+## Using MicroFluor
+
+### Web application
+Open https://fishmicroplasticfinder.com/ in a modern browser (Chrome, Edge, Firefox or Safari).
+
+### Windows desktop app
+1. Download `MicroFluor-Windows-x64-v2.5.6.zip` from [Releases](../../releases).
+2. Unzip and run `MicroFluor.exe`. (Windows may show a SmartScreen warning because the app is not code-signed; choose *More info → Run anyway*.)
+
+Requirements: Windows 10 or later, 64-bit.
+
+### Running from source
+Requirements: [Node.js](https://nodejs.org/) 20 or later and npm.
+
+```bash
+git clone https://github.com/<user>/<repo>.git
+cd <repo>
+npm install
+npm run dev        # starts the local development server
 ```
+
+Build for production with `npm run build`. Account features use a hosted backend; set the environment variables listed in `.env.example` to connect your own.
+
+## Built with
+TypeScript, React, TanStack Start/Router, Tailwind CSS, Radix UI, Recharts and Zod; desktop packaging with Electron. Developed with [Lovable](https://lovable.dev).
+
+## Citation
+If you use MicroFluor, please cite the software (see `CITATION.cff`, or use GitHub's *Cite this repository* button) and the associated article:
+
+> Hampuwo, B., Lahnsteiner, E., Dünser, A., Friedrich, T., Lahnsteiner, F. An integrated fluorescence-based workflow for first-line screening of low-micrometre microplastics in fish tissues. *In preparation.*
+
+Archived version: DOI to be added (Zenodo).
+
+## Licence
+MicroFluor is released under the [MIT License](LICENSE). Third-party components remain under their own licences; see `THIRD-PARTY-NOTICES.txt`.
+
+## Contact
+Buumba Hampuwo, BOKU University, Institute of Hydrobiology and Aquatic Ecosystem Management, Vienna, Austria – buumba.hampuwo@boku.ac.at
