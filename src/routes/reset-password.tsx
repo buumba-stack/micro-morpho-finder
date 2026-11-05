@@ -166,7 +166,7 @@ function ResetPasswordPage() {
       )}
       {error && <p className="font-mono text-[11px] text-fibre">{error}</p>}
       <p className="text-center font-mono text-[11px] text-muted-foreground">
-        MicroFluor © 2026 Buumba Hampuwo. All Rights Reserved.
+        MicroFluor © 2026 Buumba Hampuwo. Released under the MIT License.
       </p>
     </main>
   );

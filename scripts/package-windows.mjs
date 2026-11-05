@@ -5,7 +5,7 @@
  *
  * Licensing layout inside the distribution:
  *   MicroFluor.exe
- *   LICENSE.txt                                      (proprietary, Buumba Hampuwo)
+ *   LICENSE.txt                                      (MIT License, copied from root LICENSE)
  *   THIRD-PARTY-LICENSES/ELECTRON-LICENSE.txt         (Electron's own LICENSE, unmodified)
  *   THIRD-PARTY-LICENSES/LICENSES.chromium.html       (Chromium notices, unmodified)
  *   THIRD-PARTY-LICENSES/THIRD-PARTY-NOTICES.txt
@@ -36,7 +36,7 @@ const appPaths = await packager({
   overwrite: true,
   asar: true,
   appVersion,
-  appCopyright: "Copyright © 2026 Buumba Hampuwo. All Rights Reserved.",
+  appCopyright: "Copyright © 2026 Buumba Hampuwo. MIT License.",
   win32metadata: {
     CompanyName: "Buumba Hampuwo",
     ProductName: "MicroFluor",
@@ -81,7 +81,7 @@ const appDir = appPaths[0];
 const tpl = path.join(appDir, "THIRD-PARTY-LICENSES");
 await mkdir(tpl, { recursive: true });
 
-// Preserve Electron's own LICENSE (never overwrite it with the proprietary one).
+// Preserve Electron's own LICENSE (never overwrite it with MicroFluor's own).
 const electronLicense = path.join(appDir, "LICENSE");
 if (await exists(electronLicense)) {
   await rename(electronLicense, path.join(tpl, "ELECTRON-LICENSE.txt"));
@@ -91,7 +91,7 @@ if (await exists(chromium)) {
   await rename(chromium, path.join(tpl, "LICENSES.chromium.html"));
 }
 
-await cp(path.join(root, "LICENSE.txt"), path.join(appDir, "LICENSE.txt"));
+await cp(path.join(root, "LICENSE"), path.join(appDir, "LICENSE.txt"));
 await cp(
   path.join(root, "THIRD-PARTY-LICENSES", "THIRD-PARTY-NOTICES.txt"),
   path.join(tpl, "THIRD-PARTY-NOTICES.txt"),

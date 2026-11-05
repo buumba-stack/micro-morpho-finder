@@ -66,12 +66,12 @@ function ThirdPartyPage() {
 
       <h2>Relationship to MicroFluor's own license</h2>
       <p>
-        The inclusion of third-party software does not change the proprietary status of MicroFluor's
-        original components, and MicroFluor's proprietary license does not restrict any right granted
-        to you by an applicable third-party open-source license.
+        MicroFluor's original components are released under the MIT License. Third-party components
+        remain under their own licenses, and nothing in MicroFluor's license restricts any right
+        granted to you by an applicable third-party open-source license.
       </p>
 
-      <p className="pt-4">MicroFluor © 2026 Buumba Hampuwo. All Rights Reserved.</p>
+      <p className="pt-4">MicroFluor © 2026 Buumba Hampuwo. Released under the MIT License.</p>
     </LegalPage>
   );
 }
