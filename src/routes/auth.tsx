@@ -154,7 +154,7 @@ function AuthPage() {
       {notice && <p className="font-mono text-[11px] text-sphere">{notice}</p>}
 
       <p className="text-center font-mono text-[11px] text-muted-foreground">
-        MicroFluor v{MICROFLUOR_VERSION} · © 2026 Buumba Hampuwo. All Rights Reserved.
+        MicroFluor v{MICROFLUOR_VERSION} · MicroFluor © 2026 Buumba Hampuwo. Released under the MIT License.
       </p>
     </main>
   );

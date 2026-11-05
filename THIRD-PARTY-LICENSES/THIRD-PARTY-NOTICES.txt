@@ -26,8 +26,8 @@ other JavaScript, web, and native dependencies
 
 Relevant copyright notices and license terms are included with the application or within the applicable dependency distributions.
 
-The inclusion of third-party software does not change the proprietary status of MicroFluor's original components.
+MicroFluor's original components are released under the MIT License (see LICENSE). Third-party components remain under their own licenses.
 
 MicroFluor
 Copyright © 2026 Buumba Hampuwo.
-All Rights Reserved.
+Released under the MIT License.
