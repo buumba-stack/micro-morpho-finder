@@ -927,7 +927,7 @@ export function AnalyzerApp() {
 
       <footer className="label-caps pb-2">
         Categories: fibre · sphere · pellet · fragment — assigned from aspect ratio and circularity
-        <div className="mt-1">MicroFluor © 2026 Buumba Hampuwo. All Rights Reserved.</div>
+        <div className="mt-1">MicroFluor © 2026 Buumba Hampuwo. Released under the MIT License.</div>
       </footer>
 
     </main>

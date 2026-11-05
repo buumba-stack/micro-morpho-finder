@@ -7,7 +7,7 @@ export function LegalFooter() {
   return (
     <footer className="border-t border-border/60 px-4 py-4 text-xs text-muted-foreground">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
-        <p>MicroFluor © 2026 Buumba Hampuwo. All Rights Reserved.</p>
+        <p>MicroFluor © 2026 Buumba Hampuwo. Released under the MIT License.</p>
         <nav className="flex flex-wrap items-center gap-4">
           <Link to="/terms" className="transition-colors hover:text-foreground">
             Terms of Use

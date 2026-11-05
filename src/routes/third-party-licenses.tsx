@@ -71,7 +71,7 @@ function ThirdPartyPage() {
         to you by an applicable third-party open-source license.
       </p>
 
-      <p className="pt-4">MicroFluor © 2026 Buumba Hampuwo. All Rights Reserved.</p>
+      <p className="pt-4">MicroFluor © 2026 Buumba Hampuwo. Released under the MIT License.</p>
     </LegalPage>
   );
 }

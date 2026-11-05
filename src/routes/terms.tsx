@@ -73,7 +73,7 @@ function TermsPage() {
       <h2>6. Changes</h2>
       <p>These Terms may be updated. Continued use of the Software constitutes acceptance.</p>
 
-      <p className="pt-4">MicroFluor © 2026 Buumba Hampuwo. All Rights Reserved.</p>
+      <p className="pt-4">MicroFluor © 2026 Buumba Hampuwo. Released under the MIT License.</p>
     </LegalPage>
   );
 }

@@ -94,6 +94,6 @@
   "main": "electron/main.cjs",
   "productName": "MicroFluor",
   "author": "Buumba Hampuwo",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "description": "MicroFluor"
 }
