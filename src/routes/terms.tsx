@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { LegalPage } from "@/components/LegalPage";
 
 const DESC =
-  "Terms of Use for MicroFluor, proprietary microplastic morphology analysis software owned by Buumba Hampuwo.";
+  "Terms of Use for the hosted MicroFluor web service and accounts. MicroFluor source code is released under the MIT License.";
 
 export const Route = createFileRoute("/terms")({
   head: () => ({
@@ -24,30 +24,29 @@ function TermsPage() {
   return (
     <LegalPage title="Terms of Use">
       <p>
-        These Terms of Use govern access to and use of MicroFluor, including this website and the
-        MicroFluor desktop application (together, the <strong>Software</strong>).
+        These Terms of Use govern access to and use of the hosted MicroFluor web service at this
+        website, including any MicroFluor account (together, the <strong>Service</strong>).
       </p>
 
-      <h2>1. Ownership</h2>
+      <h2>1. Source code license</h2>
       <p>
-        MicroFluor's original software, source code, user interface, workflows, documentation,
-        designs, business logic, algorithms, configurations, and other original content are
-        proprietary to Buumba Hampuwo. All rights not expressly granted are reserved.
+        MicroFluor's source code is released under the MIT License. Your rights to use, copy,
+        modify, and distribute the software are set out in that license, not in these Terms. These
+        Terms apply only to the hosted Service and accounts.
       </p>
 
-      <h2>2. Permitted use</h2>
-      <p>
-        Authorized users are granted only the limited right necessary to operate the Software for its
-        intended purpose. Access to this website does not grant ownership of MicroFluor, nor a
-        general license to copy, reproduce, redistribute, resell, sublicense, publish, or create
-        derivative products from the proprietary portions of MicroFluor.
-      </p>
-
-      <h2>3. Restrictions</h2>
+      <h2>2. Accounts and access</h2>
       <ul>
-        <li>No reproduction or distribution of proprietary components without written authorization.</li>
-        <li>No commercial exploitation, resale, or sublicensing of proprietary components.</li>
-        <li>No creation of derivative works from proprietary components.</li>
+        <li>Keep your sign-in credentials and any access key confidential.</li>
+        <li>You are responsible for activity carried out through your account or access key.</li>
+        <li>Access to the Service, including AI features and usage limits, may be changed, suspended, or revoked.</li>
+      </ul>
+
+      <h2>3. Acceptable use of the Service</h2>
+      <ul>
+        <li>Do not attempt to bypass authentication, access controls, or usage limits.</li>
+        <li>Do not interfere with, overload, or disrupt the Service or its infrastructure.</li>
+        <li>Do not use the Service for unlawful purposes.</li>
       </ul>
 
       <h2>4. Third-party components</h2>
