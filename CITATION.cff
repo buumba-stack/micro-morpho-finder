@@ -6,10 +6,11 @@ authors:
   - family-names: Hampuwo
     given-names: Buumba
     affiliation: "BOKU University, Institute of Hydrobiology and Aquatic Ecosystem Management"
-version: 2.5.6
+version: 2.5.7
 date-released: 2026-11-05
 license: MIT
 url: "https://fishmicroplasticfinder.com/"
+repository-code: "https://github.com/buumba-stack/micro-morpho-finder"
 keywords:
   - microplastics
   - fluorescence microscopy

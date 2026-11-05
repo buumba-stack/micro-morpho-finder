@@ -42,7 +42,7 @@ MicroFluor was developed as part of an integrated fluorescence workflow for scre
 Open https://fishmicroplasticfinder.com/ in a modern browser (Chrome, Edge, Firefox or Safari).
 
 ### Windows desktop app
-1. Download `MicroFluor-Windows-x64-v2.5.6.zip` from [Releases](../../releases).
+1. Download `MicroFluor-Windows-x64-v2.5.7.zip` from [Releases](../../releases).
 2. Unzip and run `MicroFluor.exe`. (Windows may show a SmartScreen warning because the app is not code-signed; choose *More info → Run anyway*.)
 
 Requirements: Windows 10 or later, 64-bit.
@@ -51,13 +51,13 @@ Requirements: Windows 10 or later, 64-bit.
 Requirements: [Node.js](https://nodejs.org/) 20 or later and npm.
 
 ```bash
-git clone https://github.com/<user>/<repo>.git
-cd <repo>
+git clone https://github.com/buumba-stack/micro-morpho-finder.git
+cd micro-morpho-finder
 npm install
 npm run dev        # starts the local development server
 ```
 
-Build for production with `npm run build`. Account features use a hosted backend; set the environment variables listed in `.env.example` to connect your own.
+Build for production with `npm run build`. Account features use a hosted backend; to use your own Supabase project, replace the `SUPABASE_*` and `VITE_SUPABASE_*` values in `.env`.
 
 ## Built with
 TypeScript, React, TanStack Start/Router, Tailwind CSS, Radix UI, Recharts and Zod; desktop packaging with Electron. Developed with [Lovable](https://lovable.dev).
