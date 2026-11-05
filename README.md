@@ -1,5 +1,7 @@
 # MicroFluor
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23983369.svg)](https://doi.org/10.5281/zenodo.23983369)
+
 **Image-analysis and quality-control software for first-line, fluorescence-based screening of microplastic-like particles in biological samples.**
 
 MicroFluor was developed as part of an integrated fluorescence workflow for screening low-micrometre microplastics in fish tissues (Hampuwo et al., in preparation; see [Citation](#citation)). It turns fluorescence micrographs into particle counts, sizes and shape classes, and checks every candidate particle against documented procedural-blank artefacts before it is accepted.
@@ -67,7 +69,7 @@ If you use MicroFluor, please cite the software (see `CITATION.cff`, or use GitH
 
 > Hampuwo, B., Lahnsteiner, E., Dünser, A., Friedrich, T., Lahnsteiner, F. An integrated fluorescence-based workflow for first-line screening of low-micrometre microplastics in fish tissues. *In preparation.*
 
-Archived version: DOI to be added (Zenodo).
+Archived version: v2.5.7, https://doi.org/10.5281/zenodo.23983369 (all versions: https://doi.org/10.5281/zenodo.23977086).
 
 ## Licence
 MicroFluor is released under the [MIT License](LICENSE). Third-party components remain under their own licences; see `THIRD-PARTY-NOTICES.txt`.

@@ -7,6 +7,7 @@ authors:
     given-names: Buumba
     affiliation: "BOKU University, Institute of Hydrobiology and Aquatic Ecosystem Management"
 version: 2.5.7
+doi: 10.5281/zenodo.23983369
 date-released: 2026-11-05
 license: MIT
 url: "https://fishmicroplasticfinder.com/"
