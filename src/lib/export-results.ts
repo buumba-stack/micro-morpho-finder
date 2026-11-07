@@ -1,8 +1,18 @@
 import type { Morphology } from "./particle-analysis";
 import { MORPHOLOGIES } from "./particle-analysis";
 import { MICROFLUOR_VERSION } from "./app-version";
+import { flagLevel } from "./reproducibility/core";
 
 export interface ExportRow {
+  threshold?: number;
+  scale?: number;
+  imageHash?: string;
+  libraryVersion?: string;
+  matchedId?: string;
+  matchedScore?: number;
+  agreeingFeatures?: number;
+  decisionTimestamp?: string;
+  originalCandidates?: string;
   file: string;
   tissue: string;
   particle: number;
@@ -72,6 +82,9 @@ export function particlesCsv(rows: ExportRow[]): string {
     "matcher_version",
     "human_decision",
     "procedural_blank_support",
+    "threshold", "scale_um_per_px", "image_sha256", "blank_library_version_id",
+    "equivalent_circular_diameter_um", "matched_reference_id", "similarity_score", "agreeing_features", "flag_level", "analyst_decision_timestamp",
+    "area_full_precision", "width_full_precision", "height_full_precision", "feret_full_precision", "original_candidate_measurements",
   ];
   const lines = rows.map((r) =>
     [
@@ -102,6 +115,10 @@ export function particlesCsv(rows: ExportRow[]): string {
       csvCell(r.matcherVersion),
       csvCell(r.humanDecision),
       r.proceduralBlankSupport === null ? "" : String(r.proceduralBlankSupport),
+      r.threshold ?? "", r.scale ?? "", csvCell(r.imageHash ?? ""), csvCell(r.libraryVersion ?? ""),
+      String(Math.sqrt(4 * r.area / Math.PI)), csvCell(r.matchedId ?? ""), r.matchedScore ?? "", r.agreeingFeatures ?? "",
+      flagLevel(r.matchedScore ?? 0, r.agreeingFeatures ?? 0), csvCell(r.decisionTimestamp ?? ""),
+      String(r.area), String(r.width), String(r.height), String(r.feret), csvCell(r.originalCandidates ?? ""),
     ].join(","),
   );
   return [header.join(","), ...lines].join("\n");
