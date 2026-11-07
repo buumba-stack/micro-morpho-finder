@@ -26,6 +26,7 @@ export const Route = createFileRoute("/")({
           { property: "og:title", content: PREPUB_TITLE },
           { property: "og:description", content: PREPUB_DESC },
           { property: "og:type", content: "website" },
+          { name: "twitter:card", content: "summary_large_image" },
         ]
       : [
           { title: FULL_TITLE },
