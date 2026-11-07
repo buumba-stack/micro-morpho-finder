@@ -45,8 +45,20 @@ export function particleReferences(text: string): Reference[] {
   const image=cell(row,'Image','image_name'); if(!image) throw new Error('Missing image name');
   return {image, hash:cell(row,'image_sha256','image_hash'),id:number(cell(row,'Particle','particle_id'),'Particle'),...values,fullPrecision:full,precision};
  });
- const keys=new Set<string>(); for(const r of refs){const key=r.image+'#'+r.hash+'#'+r.id;if(keys.has(key))throw new Error('Duplicate particle row: '+key);keys.add(key);}
- return refs;
+ const originals=new Map<string,Reference[]>();
+ for(const row of parseCsv(text)){
+  const raw=cell(row,'original_candidate_measurements');if(!raw||raw==='[]')continue;
+  const image=cell(row,'Image'),hash=cell(row,'image_sha256');
+  const parsed=JSON.parse(raw) as Measurement[];
+  if(!Array.isArray(parsed)||parsed.some(p=>!Number.isInteger(p.id)||[p.area,p.width,p.height,p.feret].some(v=>!Number.isFinite(v))))throw new Error('Invalid original candidate measurements');
+  const key=image+'#'+hash;
+  const next=parsed.map(p=>({...p,image,hash,fullPrecision:true,precision:{area:17,width:17,height:17,feret:17}}));
+  if(originals.has(key)&&canonical(originals.get(key))!==canonical(next))throw new Error('Conflicting original candidate measurements');
+  originals.set(key,next);
+ }
+ const effective=refs.filter(r=>!originals.has(r.image+'#'+r.hash)).concat([...originals.values()].flat());
+ const keys=new Set<string>(); for(const r of effective){const key=r.image+'#'+r.hash+'#'+r.id;if(keys.has(key))throw new Error('Duplicate particle row: '+key);keys.add(key);}
+ return effective;
 }
 export interface Difference { particle: number; field: string; expected: number | string; actual: number | string; difference: number | string }
 export function compareCandidates(actual: Measurement[], expected: Reference[], legacy=false) {
