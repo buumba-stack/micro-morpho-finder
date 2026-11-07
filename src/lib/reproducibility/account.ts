@@ -14,7 +14,11 @@ export async function saveRecord(record:ImageRecord,owner:string|null){
 }
 function serialize(r:ImageRecord){return {...r,settings:{...r.settings,maxArea:Number.isFinite(r.settings.maxArea)?r.settings.maxArea:null}};}
 export function restoreRecord(value:any):ImageRecord{return {...value,settings:{...value.settings,maxArea:value.settings.maxArea===null?Infinity:value.settings.maxArea}};}
-export async function syncRecords(owner:string):Promise<ImageRecord[]>{
+let syncing:Promise<unknown>=Promise.resolve();
+export function syncRecords(owner:string):Promise<ImageRecord[]>{
+ const next=syncing.catch(()=>{}).then(()=>syncRecordsNow(owner));syncing=next;return next;
+}
+async function syncRecordsNow(owner:string):Promise<ImageRecord[]>{
  const client=await getAuthClient();if(!client||await accountIdentity()!==owner)throw new Error('Sign in to save settings to your account');
  const records=await localRecords(owner);
  for(const r of records){const {error}=await client.from('image_analysis_records').upsert({id:r.id,user_id:owner,batch_id:r.batchId,image_name:r.image,image_sha256:r.hash,run_id:r.runId,recorded_at:r.timestamp,payload:serialize(r) as unknown as Json},{onConflict:'id'});if(error)throw new Error('Settings save failed: '+error.message);}

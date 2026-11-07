@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_SETTINGS,
   analyzeImageData,
@@ -48,6 +48,8 @@ export function AnalyzerApp() {
   const [aiReviews, setAiReviews] = useState<Record<string, AiReview[]>>({});
   const [view, setView] = useState<"analysis" | "blanks" | "memory" | "reproducibility">("analysis");
   const [recordStatus, setRecordStatus] = useState("");
+  const sessionWrites = useRef<Promise<unknown>>(Promise.resolve());
+  const workspaceGeneration = useRef(0);
   const [markTarget, setMarkTarget] = useState<MarkTarget | null>(null);
   /** false until the saved batch (if any) has been restored from local storage */
   const [sessionReady, setSessionReady] = useState(false);
@@ -714,10 +716,11 @@ export function AnalyzerApp() {
   }, [entries, sessionReady, memory.activeBatch, blanks.library, memory.families, memory.observations]);
 
   const clearAll = useCallback(() => {
+    workspaceGeneration.current += 1;
     setEntries([]);
     setAiReviews({});
     setSavedAt(null);
-    void clearSession();
+    sessionWrites.current = sessionWrites.current.catch(() => {}).then(() => clearSession());
   }, []);
 
   /** Restore the previously analyzed batch so results survive reloads/crashes. */
@@ -740,9 +743,12 @@ export function AnalyzerApp() {
   /** Auto-save the batch (debounced) whenever results or settings change. */
   useEffect(() => {
     if (!sessionReady || progress.running) return;
+    const generation = workspaceGeneration.current;
     const t = setTimeout(() => {
-      void saveSession(entries, defaults).then((ok) => {
-        if (ok) setSavedAt(new Date().toISOString());
+      sessionWrites.current = sessionWrites.current.catch(() => {}).then(async () => {
+        if (generation !== workspaceGeneration.current || !entries.length) return;
+        const ok = await saveSession(entries, defaults);
+        if (ok && generation === workspaceGeneration.current) setSavedAt(new Date().toISOString());
       });
     }, 600);
     return () => clearTimeout(t);

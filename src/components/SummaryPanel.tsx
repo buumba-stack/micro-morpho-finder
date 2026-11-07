@@ -222,7 +222,7 @@ export function SummaryPanel({
         <button
           className="btn-ghost"
           disabled={!rows.length}
-          onClick={() => downloadText(`particles_${stamp}.csv`, particlesCsv(rows))}
+          onClick={() => downloadText(`particles_${stamp}.csv`, particlesCsv(rows, analysedEntries))}
         >
           Export particles CSV
         </button>
