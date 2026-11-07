@@ -11,6 +11,7 @@ import {
 import { ingestBlankImage } from "@/lib/blank-ingest";
 import type { AnalysisSettings } from "@/lib/particle-analysis";
 import { useBlankLibrary } from "@/hooks/useBlankLibrary";
+import { retainOriginal } from "@/lib/reproducibility/library";
 
 const ANNOTATION_STYLES: Record<BlankAnnotation, string> = {
   confirmed_procedural_artifact: "border-destructive/60 bg-destructive/10 text-destructive",
@@ -51,6 +52,7 @@ export function BlankLibraryPanel({ settings, api }: Props) {
       setBusy(file.name);
       try {
         const result = await ingestBlankImage(file, meta, settings);
+        await retainOriginal(result.fileHash, file);
         const id = `${result.fileHash.slice(0, 12)}`;
         const record: BlankRecord = {
           id,
