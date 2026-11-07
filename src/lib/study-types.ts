@@ -11,11 +11,11 @@ export type ImageStatus = "pending" | "running" | "done" | "error";
  * clicks "Update batch". The committed batch data stays untouched until then.
  */
 export interface EntryDraft {
-  imageHash?: string;
-  libraryVersionId?: string;
-  originalCandidates?: Measurement[];
-  batchId?: string | null;
-  batchName?: string;
+  imageHash?: string | undefined;
+  libraryVersionId?: string | undefined;
+  originalCandidates?: Measurement[] | undefined;
+  batchId?: string | null | undefined;
+  batchName?: string | undefined;
   analysis: ImageAnalysis;
   runSettings: AnalysisSettings;
   analysisId: string;
@@ -31,12 +31,12 @@ export interface EntryDraft {
 
 
 export interface ImageEntry {
-  imageHash?: string;
-  libraryVersionId?: string;
-  originalCandidates?: Measurement[];
-  batchId?: string | null;
-  batchName?: string;
-  decisionTimestamps?: Record<number, string>;
+  imageHash?: string | undefined;
+  libraryVersionId?: string | undefined;
+  originalCandidates?: Measurement[] | undefined;
+  batchId?: string | null | undefined;
+  batchName?: string | undefined;
+  decisionTimestamps?: Record<number, string> | undefined;
   id: string;
   file: File;
   name: string;

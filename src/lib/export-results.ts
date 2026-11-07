@@ -4,15 +4,15 @@ import { MICROFLUOR_VERSION } from "./app-version";
 import { flagLevel } from "./reproducibility/core";
 
 export interface ExportRow {
-  threshold?: number;
-  scale?: number;
-  imageHash?: string;
-  libraryVersion?: string;
-  matchedId?: string;
-  matchedScore?: number;
-  agreeingFeatures?: number;
-  decisionTimestamp?: string;
-  originalCandidates?: string;
+  threshold?: number | undefined;
+  scale?: number | undefined;
+  imageHash?: string | undefined;
+  libraryVersion?: string | undefined;
+  matchedId?: string | undefined;
+  matchedScore?: number | undefined;
+  agreeingFeatures?: number | undefined;
+  decisionTimestamp?: string | undefined;
+  originalCandidates?: string | undefined;
   file: string;
   tissue: string;
   particle: number;

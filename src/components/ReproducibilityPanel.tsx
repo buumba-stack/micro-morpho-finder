@@ -12,7 +12,7 @@ import { MICROFLUOR_VERSION } from '@/lib/app-version';
 import type { useBlankLibrary } from '@/hooks/useBlankLibrary';
 import type { useContaminationMemory } from '@/hooks/useContaminationMemory';
 
-interface Report { image:string;hash:string;status:string;thresholds:number[];closest:number;referenceCount:number;actualCount:number;differences:Difference[];record?:ImageRecord;precision:string }
+interface Report { image:string;hash:string;status:string;thresholds:number[];closest:number;referenceCount:number;actualCount:number;differences:Difference[];record?:ImageRecord|undefined;precision:string }
 export function ReproducibilityPanel({blanks,memory}:{blanks:ReturnType<typeof useBlankLibrary>;memory:ReturnType<typeof useContaminationMemory>}){
  const [mode,setMode]=useState<'recover'|'reproduce'>('recover');const [files,setFiles]=useState<File[]>([]);
  const [particleCsv,setParticleCsv]=useState('');const [settingCsv,setSettingCsv]=useState('');

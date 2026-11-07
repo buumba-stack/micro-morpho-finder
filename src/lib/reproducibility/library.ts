@@ -16,8 +16,8 @@ export async function snapshotLibrary(library:BlankLibraryState,families:Contami
  const snapshot={library:structuredClone(library),families:structuredClone(families),observations:structuredClone(observations),versionId:await libraryHash(library,families,observations),originals};
  await putLocal('library:'+snapshot.versionId,snapshot);return snapshot;
 }
-function dataBytes(url:string){const match=/^data:image\/(png|jpeg|webp);base64,(.*)$/.exec(url);if(!match)throw new Error('Invalid artefact image');return Uint8Array.from(atob(match[2]),c=>c.charCodeAt(0));}
-function dataUrl(bytes:Uint8Array){let text='';for(let i=0;i<bytes.length;i++)text+=String.fromCharCode(bytes[i]);return 'data:image/png;base64,'+btoa(text);}
+function dataBytes(url:string){const match=/^data:image\/(png|jpeg|webp);base64,(.*)$/.exec(url);if(!match)throw new Error('Invalid artefact image');return Uint8Array.from(atob(match[2] ?? ''),c=>c.charCodeAt(0));}
+function dataUrl(bytes:Uint8Array){let text='';for(let i=0;i<bytes.length;i++)text+=String.fromCharCode(bytes[i] ?? 0);return 'data:image/png;base64,'+btoa(text);}
 export function exportLibrary(snapshot:LibrarySnapshot){
  const files:Record<string,Uint8Array>={};const library=structuredClone(snapshot.library);
  library.records.forEach((r,ri)=>r.candidates.forEach((c,ci)=>{for(const key of ['crop','contextCrop'] as const){if(!c[key])continue;const path=`images/${ri}-${ci}-${key}.png`;files[path]=dataBytes(c[key]);c[key]=path;}}));
