@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- AI Decide must reuse the AI account/reviewer verifier and reviewer allowance before paid calls; public endpoint placement is not authorization.
+- Chat submits only user turns, and the server fixes message roles to user; displayed assistant replies are untrusted client history.

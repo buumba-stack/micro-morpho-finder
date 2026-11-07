@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { ChatBodySchema as BodySchema } from "@/lib/ai-chat-input";
 import { GatewayError, openResponsesStream, sseEvents, GPT5_MODEL } from "@/lib/gpt5.server";
 import {
   AI_CHAT_DAILY_LIMIT,
@@ -13,19 +14,6 @@ import {
   logChatAttempt,
 } from "@/lib/ai-quota.server";
 
-
-const BodySchema = z.object({
-  dataset: z.string().max(200000),
-  messages: z
-    .array(
-      z.object({
-        role: z.enum(["user", "assistant"]),
-        content: z.string().max(20000),
-      }),
-    )
-    .min(1)
-    .max(40),
-});
 
 const INSTRUCTIONS = `You are the data analyst for MicroFluor, a microplastics morphology study on
 wild fish liver and intestine tissue. The user analysed fluorescence photomicrographs with an
@@ -89,10 +77,10 @@ export const Route = createFileRoute("/api/public/ai-chat")({
             ],
           },
           ...body.messages.map((m) => ({
-            role: m.role,
+            role: "user" as const,
             content: [
               {
-                type: m.role === "assistant" ? "output_text" : "input_text",
+                type: "input_text",
                 text: m.content,
               },
             ],
