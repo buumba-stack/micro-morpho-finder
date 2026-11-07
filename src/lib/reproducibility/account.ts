@@ -23,7 +23,12 @@ async function syncRecordsNow(owner:string):Promise<ImageRecord[]>{
  const records=await localRecords(owner);
  for(const r of records){const {error}=await client.from('image_analysis_records').upsert({id:r.id,user_id:owner,batch_id:r.batchId,image_name:r.image,image_sha256:r.hash,run_id:r.runId,recorded_at:r.timestamp,payload:serialize(r) as unknown as Json},{onConflict:'id'});if(error)throw new Error('Settings save failed: '+error.message);}
  const all:ImageRecord[]=[];for(let offset=0;;offset+=500){const {data,error}=await client.from('image_analysis_records').select('payload').eq('user_id',owner).order('recorded_at').range(offset,offset+499);if(error)throw new Error(error.message);all.push(...(data??[]).map(row=>restoreRecord(row.payload)));if((data??[]).length<500)break;}
- await putLocal(key(owner),all);return all;
+ let merged:ImageRecord[]=all;
+ saving=saving.catch(()=>{}).then(async()=>{
+  const pending=await localRecords(owner);const byId=new Map(all.map(r=>[r.id,r]));
+  for(const record of pending)byId.set(record.id,record);
+  merged=[...byId.values()];await putLocal(key(owner),merged);
+ });await saving;return merged;
 }
 export async function saveLibraryAccount(snapshot:LibrarySnapshot,owner:string|null){
  await putLocal('library:'+snapshot.versionId,snapshot);
