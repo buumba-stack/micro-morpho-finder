@@ -32,7 +32,7 @@ import { clearSession, loadSession, saveSession } from "@/lib/session-store";
 import { newAnalysisRun } from "@/lib/analysis-run";
 import { ReproducibilityPanel } from "./ReproducibilityPanel";
 import { hashFile, tissueConflict, type ImageRecord } from "@/lib/reproducibility/core";
-import { snapshotLibrary, saveLibraryAccount as unusedLibrarySave } from "@/lib/reproducibility/library";
+import { snapshotLibrary } from "@/lib/reproducibility/library";
 import { accountIdentity, saveRecord, syncRecords, saveLibraryAccount } from "@/lib/reproducibility/account";
 
 
