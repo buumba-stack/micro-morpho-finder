@@ -9,6 +9,11 @@ import {
 } from "@/lib/export-results";
 import { exportFinalAcceptedImages } from "@/lib/export-images";
 import { MICROFLUOR_VERSION } from "@/lib/app-version";
+import { Button } from "./ui/button";
+import { Download } from "lucide-react";
+import { settingsCsv, latestRecords, methodsSummary } from "@/lib/reproducibility/core";
+import { accountIdentity, localRecords, syncRecords } from "@/lib/reproducibility/account";
+import { exportSegmentationOverlays } from "@/lib/reproducibility/overlay";
 import type { ParticleDecisionRow } from "@/lib/contamination-memory";
 import {
   CONTAMINANT_MATCHER_VERSION,
@@ -54,6 +59,13 @@ function buildRows(entries: ImageEntry[], decisions: ParticleDecisionRow[]): Exp
         decision?.decision_source ??
         (p.rejected ? "manual_review" : kept.has(p.id) ? "manual_keep_despite_match" : "");
       rows.push({
+        threshold: e.runSettings?.threshold, scale: e.runSettings?.umPerPx,
+        imageHash: e.imageHash, libraryVersion: e.libraryVersionId,
+        matchedId: blank?.matches[0]?.candidateId ?? contaminant?.familyId,
+        matchedScore: blank?.matches[0]?.similarity ?? contaminant?.similarity,
+        agreeingFeatures: blank?.matches[0]?.agreeingFeatures ?? contaminant?.agreeingFeatures,
+        decisionTimestamp: decision?.created_at ?? e.decisionTimestamps?.[p.id],
+        originalCandidates: JSON.stringify(e.originalCandidates ?? []),
         file: e.name,
         tissue: e.tissue,
         particle: p.id,
@@ -102,6 +114,17 @@ export function SummaryPanel({
   decisions?: ParticleDecisionRow[];
 }) {
   const [exportingImages, setExportingImages] = useState(false);
+  const [exportError, setExportError] = useState("");
+  async function exportSaved(all: boolean, methods = false) {
+    setExportError("");
+    try {
+      const owner = await accountIdentity();
+      const records = latestRecords(owner ? await syncRecords(owner) : await localRecords(null));
+      const batchIds = new Set(entries.map(e => e.batchId ?? null));
+      const selected = all ? records : records.filter(r => batchIds.has(r.batchId));
+      downloadText(methods ? "methods_summary.txt" : all ? "settings_all_batches.csv" : "settings_per_image.csv", methods ? methodsSummary(selected) : settingsCsv(selected), methods ? "text/plain" : "text/csv");
+    } catch (e) { setExportError(e instanceof Error ? e.message : "Export failed"); }
+  }
   const rows = useMemo(() => buildRows(entries, decisions), [entries, decisions]);
   const accepted = rows.filter((r) => r.status === "accepted");
   const analysedEntries = entries.filter((e) => e.analysis);
@@ -192,10 +215,14 @@ export function SummaryPanel({
       )}
 
       <div className="flex flex-wrap gap-2">
+        <Button variant="secondary" onClick={() => void exportSaved(false)}><Download/>Settings per image</Button>
+        <Button variant="secondary" onClick={() => void exportSaved(true)}><Download/>Settings for all saved batches</Button>
+        <Button variant="secondary" onClick={() => void exportSaved(false, true)}><Download/>Export methods summary</Button>
+        <Button variant="secondary" disabled={!analysedEntries.length || exportingImages} onClick={async () => { setExportingImages(true); try { await exportSegmentationOverlays(analysedEntries); } catch(e) { setExportError(e instanceof Error ? e.message : "Export failed"); } finally { setExportingImages(false); } }}><Download/>Export segmentation overlays</Button>
         <button
           className="btn-ghost"
           disabled={!rows.length}
-          onClick={() => downloadText(`particles_${stamp}.csv`, particlesCsv(rows))}
+          onClick={() => downloadText(`particles_${stamp}.csv`, particlesCsv(rows, analysedEntries))}
         >
           Export particles CSV
         </button>
@@ -232,6 +259,7 @@ export function SummaryPanel({
         Exports include version {MICROFLUOR_VERSION}, run ID and timestamp per image, and the
         exclusion reason and decision source per particle.
       </p>
+      {exportError && <p role="alert" className="text-xs text-destructive">{exportError}</p>}
 
     </div>
   );

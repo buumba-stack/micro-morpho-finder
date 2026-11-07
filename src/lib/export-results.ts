@@ -1,8 +1,19 @@
 import type { Morphology } from "./particle-analysis";
 import { MORPHOLOGIES } from "./particle-analysis";
 import { MICROFLUOR_VERSION } from "./app-version";
+import { flagLevel } from "./reproducibility/core";
+import type { ImageEntry } from "./study-types";
 
 export interface ExportRow {
+  threshold?: number | undefined;
+  scale?: number | undefined;
+  imageHash?: string | undefined;
+  libraryVersion?: string | undefined;
+  matchedId?: string | undefined;
+  matchedScore?: number | undefined;
+  agreeingFeatures?: number | undefined;
+  decisionTimestamp?: string | undefined;
+  originalCandidates?: string | undefined;
   file: string;
   tissue: string;
   particle: number;
@@ -43,7 +54,7 @@ function csvCell(v: string) {
   return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 
-export function particlesCsv(rows: ExportRow[]): string {
+export function particlesCsv(rows: ExportRow[], images: ImageEntry[] = []): string {
   const header = [
     "Image",
     "Tissue",
@@ -72,6 +83,9 @@ export function particlesCsv(rows: ExportRow[]): string {
     "matcher_version",
     "human_decision",
     "procedural_blank_support",
+    "threshold", "scale_um_per_px", "image_sha256", "blank_library_version_id",
+    "equivalent_circular_diameter_um", "matched_reference_id", "similarity_score", "agreeing_features", "flag_level", "analyst_decision_timestamp",
+    "area_full_precision", "width_full_precision", "height_full_precision", "feret_full_precision", "original_candidate_measurements",
   ];
   const lines = rows.map((r) =>
     [
@@ -102,8 +116,24 @@ export function particlesCsv(rows: ExportRow[]): string {
       csvCell(r.matcherVersion),
       csvCell(r.humanDecision),
       r.proceduralBlankSupport === null ? "" : String(r.proceduralBlankSupport),
+      r.threshold ?? "", r.scale ?? "", csvCell(r.imageHash ?? ""), csvCell(r.libraryVersion ?? ""),
+      String(Math.sqrt(4 * r.area / Math.PI)), csvCell(r.matchedId ?? ""), r.matchedScore ?? "", r.agreeingFeatures ?? "",
+      flagLevel(r.matchedScore ?? 0, r.agreeingFeatures ?? 0), csvCell(r.decisionTimestamp ?? ""),
+      String(r.area), String(r.width), String(r.height), String(r.feret), csvCell(r.originalCandidates ?? ""),
     ].join(","),
   );
+  // Image-only rows preserve candidate evidence after every displayed particle was deleted.
+  for (const image of images) {
+    if (!image.analysis || rows.some(r => r.file === image.name && r.imageHash === image.imageHash)) continue;
+    const values: Record<string, string> = {
+      Image: image.name, Tissue: image.runTissue ?? image.tissue, image_sha256: image.imageHash ?? "",
+      original_candidate_measurements: JSON.stringify(image.originalCandidates ?? []),
+      analysis_run_id: image.run?.analysis_run_id ?? "", analysis_timestamp: image.run?.analysis_timestamp ?? "",
+      microfluor_version: image.run?.microfluor_version ?? MICROFLUOR_VERSION,
+      blank_library_version_id: image.libraryVersionId ?? "",
+    };
+    lines.push(header.map(key => csvCell(values[key] ?? "")).join(","));
+  }
   return [header.join(","), ...lines].join("\n");
 }
 

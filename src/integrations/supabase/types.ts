@@ -167,6 +167,30 @@ export type Database = {
         }
         Relationships: []
       }
+      analysis_library_versions: {
+        Row: {
+          content_hash: string
+          created_at: string
+          id: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          content_hash: string
+          created_at?: string
+          id?: string
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          content_hash?: string
+          created_at?: string
+          id?: string
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       contaminant_families: {
         Row: {
           batch_id: string | null
@@ -288,6 +312,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      image_analysis_records: {
+        Row: {
+          batch_id: string | null
+          id: string
+          image_name: string
+          image_sha256: string
+          payload: Json
+          recorded_at: string
+          run_id: string
+          user_id: string
+        }
+        Insert: {
+          batch_id?: string | null
+          id: string
+          image_name: string
+          image_sha256: string
+          payload: Json
+          recorded_at?: string
+          run_id: string
+          user_id: string
+        }
+        Update: {
+          batch_id?: string | null
+          id?: string
+          image_name?: string
+          image_sha256?: string
+          payload?: Json
+          recorded_at?: string
+          run_id?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       particle_decisions: {
         Row: {

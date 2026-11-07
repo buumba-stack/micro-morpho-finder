@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_SETTINGS,
   analyzeImageData,
@@ -30,6 +30,10 @@ import { useBlankLibrary } from "@/hooks/useBlankLibrary";
 import { countConfirmed } from "@/lib/blank-library";
 import { clearSession, loadSession, saveSession } from "@/lib/session-store";
 import { newAnalysisRun } from "@/lib/analysis-run";
+import { ReproducibilityPanel } from "./ReproducibilityPanel";
+import { hashFile, tissueConflict, type ImageRecord } from "@/lib/reproducibility/core";
+import { snapshotLibrary } from "@/lib/reproducibility/library";
+import { accountIdentity, saveRecord, syncRecords, saveLibraryAccount } from "@/lib/reproducibility/account";
 
 
 import type { AiReview } from "@/lib/ai-client";
@@ -42,7 +46,10 @@ export function AnalyzerApp() {
   const [selectedParticle, setSelectedParticle] = useState<number | null>(null);
   const [progress, setProgress] = useState<RunProgress>({ running: false, done: 0, total: 0 });
   const [aiReviews, setAiReviews] = useState<Record<string, AiReview[]>>({});
-  const [view, setView] = useState<"analysis" | "blanks" | "memory">("analysis");
+  const [view, setView] = useState<"analysis" | "blanks" | "memory" | "reproducibility">("analysis");
+  const [recordStatus, setRecordStatus] = useState("");
+  const sessionWrites = useRef<Promise<unknown>>(Promise.resolve());
+  const workspaceGeneration = useRef(0);
   const [markTarget, setMarkTarget] = useState<MarkTarget | null>(null);
   /** false until the saved batch (if any) has been restored from local storage */
   const [sessionReady, setSessionReady] = useState(false);
@@ -175,8 +182,21 @@ export function AnalyzerApp() {
       setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, status: "running" } : e)));
       const settings = entry.settings;
       try {
+        const conflict = tissueConflict(entry.name, entry.tissue);
+        if (conflict && !window.confirm(`${entry.name} suggests ${conflict}, but is tagged ${entry.tissue}. Continue analysis?`)) {
+          setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, status: entry.status } : e));
+          return;
+        }
         const { imageData } = await decodeToImageData(entry.file);
         const analysis = analyzeImageData(imageData, settings);
+        const originalCandidates = analysis.particles.map(p => ({ id: p.id, area: p.area, width: p.width, height: p.height, feret: p.feret }));
+        const imageHash = await hashFile(entry.file);
+        const librarySnapshot = await snapshotLibrary(blanks.library, memory.families, memory.observations);
+        const libraryVersionId = librarySnapshot.versionId;
+        const batchId = memory.activeBatch?.id ?? null;
+        const batchName = memory.activeBatch?.name ?? "Workspace";
+        const runTissue = entry.tissue;
+        const runProtocol = memory.activeBatch?.protocol ?? "";
         const features = computeParticleFeatures(imageData, analysis.particles, settings);
         const blankMatches = computeBlankMatches(
           imageData,
@@ -208,6 +228,7 @@ export function AnalyzerApp() {
                     status: "done",
                     error: undefined,
                     draft: {
+                      imageHash, libraryVersionId, originalCandidates, batchId, batchName, runTissue, runProtocol,
                       analysis,
                       runSettings: { ...settings },
                       analysisId,
@@ -222,6 +243,7 @@ export function AnalyzerApp() {
                     ...e,
                     status: "done",
                     analysis,
+                    imageHash, libraryVersionId, originalCandidates, batchId, batchName, runTissue, runProtocol,
                     runSettings: { ...settings },
                     analysisId,
                     run,
@@ -316,6 +338,13 @@ export function AnalyzerApp() {
           ? {
               ...e,
               analysis: e.draft.analysis,
+              runTissue: e.draft.runTissue,
+              runProtocol: e.draft.runProtocol,
+              imageHash: e.draft.imageHash ?? e.imageHash,
+              libraryVersionId: e.draft.libraryVersionId ?? e.libraryVersionId,
+              originalCandidates: e.draft.originalCandidates ?? e.originalCandidates,
+              batchId: e.draft.batchId !== undefined ? e.draft.batchId : e.batchId,
+              batchName: e.draft.batchName ?? e.batchName,
               runSettings: e.draft.runSettings,
               analysisId: e.draft.analysisId,
               run: e.draft.run,
@@ -375,6 +404,7 @@ export function AnalyzerApp() {
                     p.id === particleId ? { ...p, rejected: !p.rejected } : p,
                   ),
                 },
+                decisionTimestamps: { ...e.decisionTimestamps, [particleId]: new Date().toISOString() },
               }
             : e,
         ),
@@ -397,6 +427,7 @@ export function AnalyzerApp() {
                     p.id === particleId ? { ...p, rejected } : p,
                   ),
                 },
+                decisionTimestamps: { ...e.decisionTimestamps, [particleId]: new Date().toISOString() },
               }
             : e,
         ),
@@ -661,11 +692,35 @@ export function AnalyzerApp() {
     setEntries((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
+  useEffect(() => {
+    if (!sessionReady) return;
+      void (async () => {
+        const owner = await accountIdentity();
+        for (const e of entries) {
+          if (!e.analysis || !e.run || !e.imageHash || !e.originalCandidates) continue;
+          const record: ImageRecord = {
+            id: e.run.analysis_run_id, image: e.name, hash: e.imageHash,
+            width: e.analysis.width, height: e.analysis.height, batchId: e.batchId ?? null,
+            batch: e.batchName ?? "Workspace", tissue: e.runTissue ?? e.tissue, protocol: e.runProtocol ?? "",
+            settings: e.runSettings ?? e.settings, candidates: e.originalCandidates,
+            accepted: e.analysis.particles.filter(p => !p.rejected).length,
+            rejected: e.analysis.particles.filter(p => p.rejected).length,
+            runId: e.run.analysis_run_id, timestamp: e.run.analysis_timestamp,
+            version: e.run.microfluor_version, libraryVersion: e.libraryVersionId ?? "", source: "recorded",
+          };
+          await saveRecord(record, owner);
+        }
+        if (owner) { await syncRecords(owner); await saveLibraryAccount(await snapshotLibrary(blanks.library, memory.families, memory.observations), owner); }
+        setRecordStatus(owner ? "Settings saved to account" : "Settings saved locally");
+      })().catch(error => setRecordStatus(`Settings pending upload: ${error instanceof Error ? error.message : "save failed"}`));
+  }, [entries, sessionReady, memory.activeBatch, blanks.library, memory.families, memory.observations]);
+
   const clearAll = useCallback(() => {
+    workspaceGeneration.current += 1;
     setEntries([]);
     setAiReviews({});
     setSavedAt(null);
-    void clearSession();
+    sessionWrites.current = sessionWrites.current.catch(() => {}).then(() => clearSession());
   }, []);
 
   /** Restore the previously analyzed batch so results survive reloads/crashes. */
@@ -688,16 +743,19 @@ export function AnalyzerApp() {
   /** Auto-save the batch (debounced) whenever results or settings change. */
   useEffect(() => {
     if (!sessionReady || progress.running) return;
+    const generation = workspaceGeneration.current;
     const t = setTimeout(() => {
-      void saveSession(entries, defaults).then((ok) => {
-        if (ok) setSavedAt(new Date().toISOString());
+      sessionWrites.current = sessionWrites.current.catch(() => {}).then(async () => {
+        if (generation !== workspaceGeneration.current || !entries.length) return;
+        const ok = await saveSession(entries, defaults);
+        if (ok && generation === workspaceGeneration.current) setSavedAt(new Date().toISOString());
       });
     }, 600);
     return () => clearTimeout(t);
   }, [entries, defaults, sessionReady, progress.running]);
 
   useEffect(() => {
-    if (!selectedImage && entries.length) setSelectedImage(entries[0]!.id);
+    if (!selectedImage && entries[0]) setSelectedImage(entries[0].id);
     if (selectedImage && !entries.some((e) => e.id === selectedImage)) {
       setSelectedImage(entries[0]?.id ?? null);
     }
@@ -750,6 +808,7 @@ export function AnalyzerApp() {
               "memory",
               `Contamination memory${memory.families.length ? ` · ${memory.families.length}` : ""}`,
             ],
+            ["reproducibility", "Reproducibility"],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -817,6 +876,8 @@ export function AnalyzerApp() {
 
       {view === "blanks" && <BlankLibraryPanel settings={defaults} api={blanks} />}
       {view === "memory" && <ContaminationMemoryPanel memory={memory} blanks={blanks} />}
+      {view === "reproducibility" && <ReproducibilityPanel blanks={blanks} memory={memory} />}
+      {recordStatus && <p role="status" className="text-xs text-muted-foreground">{recordStatus}</p>}
 
       <div
         className={`${view === "analysis" ? "grid" : "hidden"} min-h-0 flex-1 gap-4 xl:grid-cols-[300px_minmax(0,1fr)_360px]`}

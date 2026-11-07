@@ -2,6 +2,7 @@ import type { ImageAnalysis, AnalysisSettings } from "./particle-analysis";
 import type { BlankMatchMap, ParticleFeatureMap } from "./blank-matching";
 import type { ContaminantMatchMap } from "./contaminant-matching";
 import type { AnalysisRun } from "./analysis-run";
+import type { Measurement } from "./reproducibility/core";
 
 export type ImageStatus = "pending" | "running" | "done" | "error";
 
@@ -10,6 +11,13 @@ export type ImageStatus = "pending" | "running" | "done" | "error";
  * clicks "Update batch". The committed batch data stays untouched until then.
  */
 export interface EntryDraft {
+  runTissue?: string | undefined;
+  runProtocol?: string | undefined;
+  imageHash?: string | undefined;
+  libraryVersionId?: string | undefined;
+  originalCandidates?: Measurement[] | undefined;
+  batchId?: string | null | undefined;
+  batchName?: string | undefined;
   analysis: ImageAnalysis;
   runSettings: AnalysisSettings;
   analysisId: string;
@@ -25,6 +33,14 @@ export interface EntryDraft {
 
 
 export interface ImageEntry {
+  runTissue?: string | undefined;
+  runProtocol?: string | undefined;
+  imageHash?: string | undefined;
+  libraryVersionId?: string | undefined;
+  originalCandidates?: Measurement[] | undefined;
+  batchId?: string | null | undefined;
+  batchName?: string | undefined;
+  decisionTimestamps?: Record<number, string> | undefined;
   id: string;
   file: File;
   name: string;

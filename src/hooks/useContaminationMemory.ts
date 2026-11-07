@@ -561,6 +561,12 @@ export function useContaminationMemory() {
   );
 
   return {
+    importArchive: (families: ContaminantFamily[], observations: ContaminantObservation[]) => {
+      commit(prev => ({ ...prev,
+        families: [...prev.families, ...families.filter(f => !prev.families.some(p => p.id === f.id)).map(f => ({ ...f, synced: false }))],
+        observations: [...prev.observations, ...observations.filter(o => !prev.observations.some(p => p.id === o.id)).map(o => ({ ...o, synced: false }))],
+      }));
+    },
     state,
     loaded,
     userId,
