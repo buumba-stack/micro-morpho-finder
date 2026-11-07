@@ -1,12 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { completeJson, hasOpenAiKey, OpenAiError, visionModel } from "@/lib/openai-vision.server";
+import {
+  AI_CORS_HEADERS as CORS,
+  authenticateAiRequest,
+  checkReviewerAllowance,
+  clientUpdateRequired,
+  logReviewerAiUse,
+} from "@/lib/ai-quota.server";
 
-const CORS: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
 
 const BlankRefSchema = z.object({
   refId: z.string().max(120),
@@ -138,6 +140,9 @@ export const Route = createFileRoute("/api/public/ai-decide")({
           { headers: CORS },
         ),
       POST: async ({ request }) => {
+        const caller = await authenticateAiRequest(request);
+        if (!caller) return clientUpdateRequired();
+
         let body: z.infer<typeof BodySchema>;
         try {
           body = BodySchema.parse(await request.json());
@@ -153,6 +158,11 @@ export const Route = createFileRoute("/api/public/ai-decide")({
             { decisions: [], degraded: true, reason: "OPENAI_API_KEY not configured" },
             { status: 503, headers: CORS },
           );
+        }
+
+        if (caller.kind === "reviewer") {
+          const denied = await checkReviewerAllowance();
+          if (denied) return denied;
         }
 
         const content: unknown[] = [
@@ -219,6 +229,7 @@ export const Route = createFileRoute("/api/public/ai-decide")({
             reasoningEffort: "low",
           });
           const parsed = text ? (JSON.parse(text) as Record<string, unknown>) : { decisions: [] };
+          if (caller.kind === "reviewer") await logReviewerAiUse("ai-decide", true);
           return Response.json(
             {
               ...parsed,
@@ -232,6 +243,7 @@ export const Route = createFileRoute("/api/public/ai-decide")({
             { headers: CORS },
           );
         } catch (err) {
+          if (caller.kind === "reviewer") await logReviewerAiUse("ai-decide", false);
           const status = err instanceof OpenAiError ? err.status : 500;
           console.error("ai-decide failed", err);
           return Response.json(

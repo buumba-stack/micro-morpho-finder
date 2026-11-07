@@ -9,6 +9,7 @@ import { CLIENT_VERSION_HEADER, MICROFLUOR_VERSION } from "./app-version";
 import { getAccessToken } from "@/hooks/useAuth";
 import { getReviewerSession } from "@/lib/reviewer-session";
 import { aiBaseUrl } from "@/lib/ai-client-base";
+import { userChatMessages } from "@/lib/ai-chat-input";
 
 export { aiBaseUrl };
 
@@ -135,7 +136,7 @@ export async function streamChat(
   const res = await fetch(`${aiBaseUrl()}/api/public/ai-chat`, {
     method: "POST",
     headers: await aiHeaders(),
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, messages: userChatMessages(payload.messages) }),
     ...(signal ? { signal } : {}),
   });
   if (!res.ok || !res.body) throw parseError(res.status, await res.text());
