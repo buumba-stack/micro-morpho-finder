@@ -2,6 +2,7 @@ import type { Morphology } from "./particle-analysis";
 import { MORPHOLOGIES } from "./particle-analysis";
 import { MICROFLUOR_VERSION } from "./app-version";
 import { flagLevel } from "./reproducibility/core";
+import type { ImageEntry } from "./study-types";
 
 export interface ExportRow {
   threshold?: number | undefined;
@@ -53,7 +54,7 @@ function csvCell(v: string) {
   return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 
-export function particlesCsv(rows: ExportRow[]): string {
+export function particlesCsv(rows: ExportRow[], images: ImageEntry[] = []): string {
   const header = [
     "Image",
     "Tissue",
@@ -121,6 +122,18 @@ export function particlesCsv(rows: ExportRow[]): string {
       String(r.area), String(r.width), String(r.height), String(r.feret), csvCell(r.originalCandidates ?? ""),
     ].join(","),
   );
+  // Image-only rows preserve candidate evidence after every displayed particle was deleted.
+  for (const image of images) {
+    if (!image.analysis || rows.some(r => r.file === image.name && r.imageHash === image.imageHash)) continue;
+    const values: Record<string, string> = {
+      Image: image.name, Tissue: image.runTissue ?? image.tissue, image_sha256: image.imageHash ?? "",
+      original_candidate_measurements: JSON.stringify(image.originalCandidates ?? []),
+      analysis_run_id: image.run?.analysis_run_id ?? "", analysis_timestamp: image.run?.analysis_timestamp ?? "",
+      microfluor_version: image.run?.microfluor_version ?? MICROFLUOR_VERSION,
+      blank_library_version_id: image.libraryVersionId ?? "",
+    };
+    lines.push(header.map(key => csvCell(values[key] ?? "")).join(","));
+  }
   return [header.join(","), ...lines].join("\n");
 }
 

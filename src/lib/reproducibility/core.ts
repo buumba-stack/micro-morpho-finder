@@ -34,7 +34,7 @@ function cell(row: Record<string,string>, ...names: string[]) {
 }
 function number(value: string, name: string) { const n=Number(value); if (!value.trim() || !Number.isFinite(n)) throw new Error('Missing or invalid '+name); return n; }
 export function particleReferences(text: string): Reference[] {
- const refs=parseCsv(text).map(row => {
+ const refs=parseCsv(text).filter(row => cell(row,'Particle','particle_id') !== '').map(row => {
   const full=['area','width','height','feret'].every(k=>cell(row,k+'_full_precision')!=='');
   const precision = {area:3,width:3,height:3,feret:3};
   const values={} as Record<'area'|'width'|'height'|'feret',number>;

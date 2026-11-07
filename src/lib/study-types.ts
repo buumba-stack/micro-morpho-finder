@@ -11,6 +11,8 @@ export type ImageStatus = "pending" | "running" | "done" | "error";
  * clicks "Update batch". The committed batch data stays untouched until then.
  */
 export interface EntryDraft {
+  runTissue?: string | undefined;
+  runProtocol?: string | undefined;
   imageHash?: string | undefined;
   libraryVersionId?: string | undefined;
   originalCandidates?: Measurement[] | undefined;
@@ -31,6 +33,8 @@ export interface EntryDraft {
 
 
 export interface ImageEntry {
+  runTissue?: string | undefined;
+  runProtocol?: string | undefined;
   imageHash?: string | undefined;
   libraryVersionId?: string | undefined;
   originalCandidates?: Measurement[] | undefined;

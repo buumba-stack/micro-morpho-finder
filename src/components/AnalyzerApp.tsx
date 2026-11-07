@@ -193,6 +193,8 @@ export function AnalyzerApp() {
         const libraryVersionId = librarySnapshot.versionId;
         const batchId = memory.activeBatch?.id ?? null;
         const batchName = memory.activeBatch?.name ?? "Workspace";
+        const runTissue = entry.tissue;
+        const runProtocol = memory.activeBatch?.protocol ?? "";
         const features = computeParticleFeatures(imageData, analysis.particles, settings);
         const blankMatches = computeBlankMatches(
           imageData,
@@ -224,7 +226,7 @@ export function AnalyzerApp() {
                     status: "done",
                     error: undefined,
                     draft: {
-                      imageHash, libraryVersionId, originalCandidates, batchId, batchName,
+                      imageHash, libraryVersionId, originalCandidates, batchId, batchName, runTissue, runProtocol,
                       analysis,
                       runSettings: { ...settings },
                       analysisId,
@@ -239,7 +241,7 @@ export function AnalyzerApp() {
                     ...e,
                     status: "done",
                     analysis,
-                    imageHash, libraryVersionId, originalCandidates, batchId, batchName,
+                    imageHash, libraryVersionId, originalCandidates, batchId, batchName, runTissue, runProtocol,
                     runSettings: { ...settings },
                     analysisId,
                     run,
@@ -334,10 +336,12 @@ export function AnalyzerApp() {
           ? {
               ...e,
               analysis: e.draft.analysis,
+              runTissue: e.draft.runTissue,
+              runProtocol: e.draft.runProtocol,
               imageHash: e.draft.imageHash ?? e.imageHash,
               libraryVersionId: e.draft.libraryVersionId ?? e.libraryVersionId,
               originalCandidates: e.draft.originalCandidates ?? e.originalCandidates,
-              batchId: e.draft.batchId ?? e.batchId,
+              batchId: e.draft.batchId !== undefined ? e.draft.batchId : e.batchId,
               batchName: e.draft.batchName ?? e.batchName,
               runSettings: e.draft.runSettings,
               analysisId: e.draft.analysisId,
@@ -695,7 +699,7 @@ export function AnalyzerApp() {
           const record: ImageRecord = {
             id: e.run.analysis_run_id, image: e.name, hash: e.imageHash,
             width: e.analysis.width, height: e.analysis.height, batchId: e.batchId ?? null,
-            batch: e.batchName ?? "Workspace", tissue: e.tissue, protocol: memory.activeBatch?.protocol ?? "",
+            batch: e.batchName ?? "Workspace", tissue: e.runTissue ?? e.tissue, protocol: e.runProtocol ?? "",
             settings: e.runSettings ?? e.settings, candidates: e.originalCandidates,
             accepted: e.analysis.particles.filter(p => !p.rejected).length,
             rejected: e.analysis.particles.filter(p => p.rejected).length,
