@@ -39,7 +39,7 @@ export function ReproducibilityPanel({blanks,memory}:{blanks:ReturnType<typeof u
     if(mode==='recover'&&!imageRefs.length)throw new Error('No candidate rows for '+file.name+'; legacy CSV cannot prove a zero-particle image');
     if(mode==='reproduce'&&imageRefs.some(r=>!r.hash||!r.fullPrecision))throw new Error('Full-precision columns and SHA-256 are required for reproduction: '+file.name);
     if(selected&&selected.libraryVersion!==library?.versionId)throw new Error('Library version mismatch for '+file.name);
-    if(selected&&(selected.thresholds?.[0]??0)!==imageRefs.length)throw new Error('Companion CSV lacks the complete candidate set for '+file.name);
+    if(selected&&(selected.candidateCount??0)!==imageRefs.length)throw new Error('Companion CSV lacks the complete candidate set for '+file.name);
     const {imageData}=await decodeToImageData(file);if(selected&&(selected.width!==imageData.width||selected.height!==imageData.height))throw new Error('Image dimensions differ: '+file.name);
     const result=await runWorker(imageData,selected?.settings??settings,imageRefs,mode,n=>setProgress(`${i+1}/${files.length} · ${file.name} · ${n}/256`),abort.signal);
     const thresholds=result.thresholds??[];const closest=result.closest??selected?.settings.threshold??0;

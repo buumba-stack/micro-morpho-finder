@@ -8,7 +8,7 @@ export interface ImageRecord {
  batchId: string | null; batch: string; tissue: string; protocol: string;
  settings: AnalysisSettings; candidates: Measurement[]; accepted: number; rejected: number;
  runId: string; timestamp: string; version: string; libraryVersion: string;
- source: 'recorded' | 'recovered'; thresholds?: number[]; owner?: string | null;
+ source: 'recorded' | 'recovered'; thresholds?: number[]; candidateCount?: number; owner?: string | null;
 }
 export interface Reference extends Measurement { image: string; hash: string; fullPrecision: boolean; precision: Record<'area'|'width'|'height'|'feret', number> }
 export async function sha256(data: ArrayBuffer | Uint8Array): Promise<string> {
@@ -83,13 +83,13 @@ export function settingsCsv(records:ImageRecord[]){return csv(records.map(r=>({
  Image:r.image,image_sha256:r.hash,image_width_px:r.width,image_height_px:r.height,batch_name:r.batch,batch_id:r.batchId??'',Tissue:r.tissue,protocol:r.protocol,
  scale_um_per_px:r.settings.umPerPx,threshold:r.settings.threshold,min_area_um2:r.settings.minArea,max_area_um2:Number.isFinite(r.settings.maxArea)?r.settings.maxArea:'unlimited',
  min_circularity:r.settings.minCircularity,max_circularity:r.settings.maxCircularity,exclude_edges:r.settings.excludeEdges,
- candidates:r.candidates.length,accepted:r.accepted,rejected:r.rejected,analysis_run_id:r.runId,analysis_timestamp:r.timestamp,microfluor_version:r.version,blank_library_version_id:r.libraryVersion,settings_source:r.source
+ candidates:r.candidateCount ?? r.candidates.length,accepted:r.accepted,rejected:r.rejected,analysis_run_id:r.runId,analysis_timestamp:r.timestamp,microfluor_version:r.version,blank_library_version_id:r.libraryVersion,settings_source:r.source
 })));}
 export function readSettings(text:string):ImageRecord[]{return parseCsv(text).map(r=>{
  const image=cell(r,'Image'),hash=cell(r,'image_sha256'); if(!image||!/^[a-f0-9]{64}$/.test(hash))throw new Error('Settings require image name and SHA-256 hash');
  const settings:AnalysisSettings={umPerPx:number(r['scale_um_per_px']??'','scale'),threshold:number(r['threshold']??'','threshold'),minArea:number(r['min_area_um2']??'','minimum area'),maxArea:r['max_area_um2']==='unlimited'?Infinity:number(r['max_area_um2']??'','maximum area'),minCircularity:number(r['min_circularity']??'','minimum circularity'),maxCircularity:number(r['max_circularity']??'','maximum circularity'),excludeEdges:r['exclude_edges']==='true'};
  if(settings.umPerPx<=0||settings.threshold<0||settings.threshold>255||!Number.isInteger(settings.threshold)||settings.minArea<0||settings.maxArea<settings.minArea||settings.minCircularity<0||settings.maxCircularity>1||settings.maxCircularity<settings.minCircularity||!['true','false'].includes(r['exclude_edges']??''))throw new Error('Invalid analysis settings');
- return {id:crypto.randomUUID(),image,hash,width:number(r['image_width_px']??'','width'),height:number(r['image_height_px']??'','height'),batchId:r['batch_id']||null,batch:r['batch_name']??'',tissue:r['Tissue']??'',protocol:r['protocol']??'',settings,candidates:[],accepted:number(r['accepted']??'','accepted'),rejected:number(r['rejected']??'','rejected'),runId:r['analysis_run_id']??'',timestamp:r['analysis_timestamp']??'',version:r['microfluor_version']??'',libraryVersion:r['blank_library_version_id']??'',source:r['settings_source']==='recovered'?'recovered':'recorded',thresholds:[number(r['candidates']??'','candidate count')]};
+ return {id:crypto.randomUUID(),image,hash,width:number(r['image_width_px']??'','width'),height:number(r['image_height_px']??'','height'),batchId:r['batch_id']||null,batch:r['batch_name']??'',tissue:r['Tissue']??'',protocol:r['protocol']??'',settings,candidates:[],accepted:number(r['accepted']??'','accepted'),rejected:number(r['rejected']??'','rejected'),runId:r['analysis_run_id']??'',timestamp:r['analysis_timestamp']??'',version:r['microfluor_version']??'',libraryVersion:r['blank_library_version_id']??'',source:r['settings_source']==='recovered'?'recovered':'recorded',candidateCount:number(r['candidates']??'','candidate count')};
 });}
 export function latestRecords(records:ImageRecord[]){const map=new Map<string,ImageRecord>();for(const r of records){const key=r.batchId+'#'+r.batch+'#'+r.image+'#'+r.hash;const prev=map.get(key);if(!prev||prev.timestamp<r.timestamp)map.set(key,r);}return [...map.values()];}
 export function methodsSummary(records:ImageRecord[]){return [

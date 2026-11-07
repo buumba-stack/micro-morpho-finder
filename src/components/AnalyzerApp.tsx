@@ -688,7 +688,6 @@ export function AnalyzerApp() {
 
   useEffect(() => {
     if (!sessionReady) return;
-    const timer = setTimeout(() => {
       void (async () => {
         const owner = await accountIdentity();
         for (const e of entries) {
@@ -708,8 +707,6 @@ export function AnalyzerApp() {
         if (owner) { await syncRecords(owner); await saveLibraryAccount(await snapshotLibrary(blanks.library, memory.families, memory.observations), owner); }
         setRecordStatus(owner ? "Settings saved to account" : "Settings saved locally");
       })().catch(error => setRecordStatus(`Settings pending upload: ${error instanceof Error ? error.message : "save failed"}`));
-    }, 800);
-    return () => clearTimeout(timer);
   }, [entries, sessionReady, memory.activeBatch, blanks.library, memory.families, memory.observations]);
 
   const clearAll = useCallback(() => {
@@ -748,7 +745,7 @@ export function AnalyzerApp() {
   }, [entries, defaults, sessionReady, progress.running]);
 
   useEffect(() => {
-    if (!selectedImage && entries.length) setSelectedImage(entries[0]!.id);
+    if (!selectedImage && entries[0]) setSelectedImage(entries[0].id);
     if (selectedImage && !entries.some((e) => e.id === selectedImage)) {
       setSelectedImage(entries[0]?.id ?? null);
     }
