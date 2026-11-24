@@ -806,21 +806,21 @@ export function AnalyzerApp() {
             are not uploaded.
           </p>
         </div>
-        <div className="flex items-end gap-5"><dl className="flex gap-5 font-mono text-xs text-muted-foreground">
+        <div className="flex items-end gap-5"><dl className="flex gap-5 text-sm text-muted-foreground">
           <div>
-            <dt className="label-caps">{current ? "Image scale" : "Default scale"}</dt>
+            <dt className="text-xs text-muted-foreground">{current ? "Image scale" : "Default scale"}</dt>
             <dd className="text-foreground">{activeSettings.umPerPx} µm/px</dd>
           </div>
           <div>
-            <dt className="label-caps">{current ? "Image threshold" : "Default threshold"}</dt>
+            <dt className="text-xs text-muted-foreground">{current ? "Image threshold" : "Default threshold"}</dt>
             <dd className="text-foreground">{activeSettings.threshold}</dd>
           </div>
           <div>
-            <dt className="label-caps">Images</dt>
+            <dt className="text-xs text-muted-foreground">Images</dt>
             <dd className="text-foreground">{entries.length}</dd>
           </div>
           <div>
-            <dt className="label-caps">Batch saved</dt>
+            <dt className="text-xs text-muted-foreground">Batch saved</dt>
             <dd className="text-foreground">
               {savedAt ? new Date(savedAt).toLocaleTimeString() : "—"}
             </dd>

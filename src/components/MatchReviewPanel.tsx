@@ -47,7 +47,7 @@ const FEATURE_LABELS: Record<string, string> = {
 };
 
 /** Largest display box side in screen px. */
-const VIEW = 240;
+const VIEW = 480;
 
 function niceBar(umAcross: number): number {
   const target = umAcross / 4;
@@ -108,15 +108,15 @@ function FieldCanvas({ src, cx, cy, sw, sh, W, H, outline, label, umAcross, pxPe
             )}
           </div>
         ) : (
-          <span className="text-xs text-muted-foreground">No image stored</span>
+          <span className="text-sm text-muted-foreground">No image stored</span>
         )}
       </div>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <span className="inline-block h-1 bg-foreground" style={{ width: bar * pxPerUm }} />
         {bar} µm
       </div>
-      <figcaption className="text-xs font-medium">{label}</figcaption>
-      {note && <p className="max-w-[240px] text-center text-[11px] text-muted-foreground">{note}</p>}
+      <figcaption className="text-sm font-medium">{label}</figcaption>
+      {note && <p className="max-w-[480px] text-center text-sm text-muted-foreground">{note}</p>}
     </figure>
   );
 }
@@ -257,7 +257,7 @@ export function MatchReviewPanel(props: Props) {
     <section className="rounded-lg border border-border bg-card p-4" aria-label="Match review">
       <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Match review</h2>
-        <span className="text-xs text-muted-foreground">{approxScale ? "Approximately same scale" : "Same scale"} · Candidate {position + 1} of {queue.length}</span>
+        <span className="text-sm text-muted-foreground">{approxScale ? "Approximately same scale" : "Same scale"} · Candidate {position + 1} of {queue.length}</span>
       </header>
 
       {blank && contaminant && (
@@ -268,7 +268,7 @@ export function MatchReviewPanel(props: Props) {
       )}
 
       <style>{`[aria-label="Match review"] .match-display{filter:brightness(${brightness}%) contrast(${contrast}%)}`}</style>
-      <div className="mb-3 flex flex-wrap items-center gap-3 text-xs">
+      <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
         <div className="flex gap-1">
           <Button size="sm" variant={view === "context" ? "default" : "outline"} onClick={() => setView("context")}>Context</Button>
           <Button size="sm" variant={view === "closeup" ? "default" : "outline"} onClick={() => setView("closeup")}>Close-up</Button>
@@ -278,8 +278,8 @@ export function MatchReviewPanel(props: Props) {
         <label className="flex items-center gap-1">Contrast <input type="range" min={50} max={300} value={contrast} onChange={(e) => setContrast(Number(e.target.value))} /></label>
         <span className="text-muted-foreground">Field {fieldMax.toFixed(0)} µm · display only, same for both</span>
       </div>
-      <div className="flex flex-wrap items-start gap-6">
-        <div className="flex flex-wrap gap-4">
+      <div className="flex flex-wrap items-start gap-4">
+        <div className="flex flex-wrap gap-3">
           <FieldCanvas
             src={bitmap}
             cx={particle ? particle.bxPx + particle.bwPx / 2 : 0}
@@ -310,19 +310,19 @@ export function MatchReviewPanel(props: Props) {
           ) : (
             <FieldCanvas src={null} cx={0} cy={0} sw={0} sh={0} W={0} H={0} umAcross={1} pxPerUm={pxPerUm} label={contaminant?.matches[0]?.familyName ?? "Reference"} />
           )}
-          <p className="w-full text-xs text-muted-foreground">
+          <p className="w-full text-sm text-muted-foreground">
             Displayed at {fmtX(candX)}×{Math.abs(refX - candX) > 0.05 ? ` (reference ${fmtX(refX)}× of its original pixels)` : ""} (nearest-neighbour)
           </p>
         </div>
 
         <div className="flex min-w-[200px] flex-1 flex-col gap-3">
           <div className="text-4xl font-semibold tabular-nums">{Math.round((similarity ?? 0) * 100)}%</div>
-          <span className={`w-fit rounded-full px-3 py-1 text-xs font-medium ${high ? "bg-destructive text-destructive-foreground" : "bg-secondary text-secondary-foreground"}`}>
+          <span className={`w-fit rounded-full px-3 py-1 text-sm font-medium ${high ? "bg-destructive text-destructive-foreground" : "bg-secondary text-secondary-foreground"}`}>
             {high ? "High-confidence match" : "Potential match"}
           </span>
 
           {rows ? (
-            <table className="w-full text-xs">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="text-muted-foreground"><th className="text-left">Feature</th><th className="text-right">Candidate</th><th className="text-right">Reference</th>{breakdownOk && <th className="text-center">Agree</th>}</tr>
               </thead>
@@ -338,11 +338,11 @@ export function MatchReviewPanel(props: Props) {
               </tbody>
             </table>
           ) : (
-            <p className="text-xs text-muted-foreground">Per-feature values are not stored for this reference.</p>
+            <p className="text-sm text-muted-foreground">Per-feature values are not stored for this reference.</p>
           )}
-          {rows && !breakdownOk && <p className="text-xs text-muted-foreground">Per-feature breakdown unavailable for this match</p>}
+          {rows && !breakdownOk && <p className="text-sm text-muted-foreground">Per-feature breakdown unavailable for this match</p>}
           <p className="text-sm font-medium">{agreeing ?? 0} of {rows?.length ?? 9} features agree</p>
-          {particle && <p className="text-xs text-muted-foreground">Feret {particle.feret.toFixed(1)} µm · {particle.morphology}</p>}
+          {particle && <p className="text-sm text-muted-foreground">Feret {particle.feret.toFixed(1)} µm · {particle.morphology}</p>}
 
           <div className="flex flex-wrap gap-2">
             <Button size="sm" className="bg-decision-exclude text-primary-foreground hover:bg-decision-exclude/90" onClick={() => decide(true)}>Confirm match – exclude particle</Button>
@@ -350,7 +350,7 @@ export function MatchReviewPanel(props: Props) {
             <Button size="sm" variant="ghost" onClick={() => go(-1)}>Previous</Button>
             <Button size="sm" variant="ghost" onClick={() => go(1)}>Next</Button>
           </div>
-          <p className="text-xs text-muted-foreground">Shortcuts: E exclude · K keep · N next · P previous</p>
+          <p className="text-sm text-muted-foreground">Shortcuts: E exclude · K keep · N next · P previous</p>
           {bitmap && particle && (
             <PublicationExport
               entry={entry}

@@ -120,8 +120,17 @@ export function ImageViewer({
     const contaminantColor = cssColor("--rejected") || "#d1495b";
     const lw = Math.max(1, Math.round(Math.max(canvas.width, canvas.height) / 700));
     ctx.lineJoin = "round";
-    ctx.font = `${Math.max(11, Math.round(canvas.height / 60))}px "JetBrains Mono", monospace`;
+    const labelPx = Math.max(14, Math.round(canvas.height / 45));
+    ctx.font = `${labelPx}px "JetBrains Mono", monospace`;
     ctx.textBaseline = "bottom";
+    // Thin dark halo behind overlay text for contrast on dark images.
+    const haloText = (text: string, x: number, y: number, fill: string) => {
+      ctx.lineWidth = Math.max(2, Math.round(labelPx / 5));
+      ctx.strokeStyle = "rgba(0,0,0,0.85)";
+      ctx.strokeText(text, x, y);
+      ctx.fillStyle = fill;
+      ctx.fillText(text, x, y);
+    };
 
     for (const p of particles) {
       const color = p.rejected ? rejectedColor : cssColor(MORPH_VAR[p.morphology] ?? "--fragment");
@@ -147,11 +156,11 @@ export function ImageViewer({
         const pad = Math.max(3, lw * 4);
         ctx.strokeRect(p.bxPx - pad, p.byPx - pad, p.bwPx + pad * 2, p.bhPx + pad * 2);
         ctx.setLineDash([]);
-        ctx.fillStyle = blankColor;
-        ctx.fillText(
+        haloText(
           `B${Math.round(match.similarity * 100)}`,
           p.bxPx + p.bwPx + pad,
-          Math.max(12, p.byPx + p.bhPx + pad),
+          Math.max(labelPx + 2, p.byPx + p.bhPx + pad),
+          blankColor,
         );
         ctx.globalAlpha = 1;
       }
@@ -167,11 +176,11 @@ export function ImageViewer({
         const pad = Math.max(3, lw * 7);
         ctx.strokeRect(p.bxPx - pad, p.byPx - pad, p.bwPx + pad * 2, p.bhPx + pad * 2);
         ctx.setLineDash([]);
-        ctx.fillStyle = contaminantColor;
-        ctx.fillText(
+        haloText(
           `C${Math.round(contaminant.similarity * 100)}`,
           p.bxPx + p.bwPx + pad,
-          Math.max(12, p.byPx - pad),
+          Math.max(labelPx + 2, p.byPx - pad),
+          contaminantColor,
         );
         ctx.globalAlpha = 1;
       }
@@ -186,8 +195,7 @@ export function ImageViewer({
         ctx.globalAlpha = 1;
       }
       if (showLabels) {
-        ctx.fillStyle = color;
-        ctx.fillText(String(p.id), p.bxPx, Math.max(12, p.byPx - 2));
+        haloText(String(p.id), p.bxPx, Math.max(labelPx + 2, p.byPx - 2), color);
       }
       ctx.restore();
     }
@@ -232,10 +240,10 @@ export function ImageViewer({
     <div className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
         <div className="mr-auto min-w-0">
-          <p className="truncate font-mono text-xs text-foreground">
+          <p className="truncate text-sm font-medium text-foreground">
             {entry ? entry.name : "No image selected"}
           </p>
-          <p className="label-caps">
+          <p className="text-xs text-muted-foreground">
             {entry
               ? `${entry.tissue} · ${stats.accepted}/${stats.total} accepted`
               : "run an analysis to review particles"}
@@ -346,7 +354,7 @@ export function ImageViewer({
           </div>
         )}
         {entry && bar && (
-          <div className="pointer-events-none sticky bottom-0 left-0 mt-2 inline-flex items-center gap-2 rounded bg-card/90 px-2 py-1 font-mono text-[11px] text-foreground">
+          <div className="pointer-events-none sticky bottom-0 left-0 mt-2 inline-flex items-center gap-2 rounded bg-card/90 px-2 py-1 text-xs text-foreground">
             <span className="inline-block h-1 bg-foreground" style={{ width: bar.px }} />
             {bar.um} µm
           </div>
@@ -355,20 +363,20 @@ export function ImageViewer({
 
       <div className="flex flex-wrap items-center gap-4 border-t border-border px-3 py-2">
         {Object.entries(MORPH_VAR).map(([name, v]) => (
-          <span key={name} className="flex items-center gap-1.5 label-caps">
+          <span key={name} className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: `var(${v})` }} />
             {name}
           </span>
         ))}
-        <span className="flex items-center gap-1.5 label-caps">
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="h-2.5 w-2.5 rounded-sm bg-rejected" />
           rejected
         </span>
-        <span className="flex items-center gap-1.5 label-caps">
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="h-2.5 w-2.5 rounded-sm border border-dashed border-accent" />
           blank match (B%)
         </span>
-        <span className="ml-auto label-caps">
+        <span className="ml-auto text-xs text-muted-foreground">
           click number/outline = select · Del = delete &amp; renumber · double-click =
           reject/restore
         </span>
