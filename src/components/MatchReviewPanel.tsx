@@ -86,8 +86,9 @@ function FieldCanvas({ src, cx, cy, sw, sh, W, H, outline, label, umAcross, pxPe
       ctx.moveTo((outline[0]! + 0.5 - x0) * k, (outline[1]! + 0.5 - y0) * k);
       for (let i = 2; i < outline.length; i += 2) ctx.lineTo((outline[i]! + 0.5 - x0) * k, (outline[i + 1]! + 0.5 - y0) * k);
       ctx.closePath();
-      ctx.strokeStyle = getComputedStyle(c).getPropertyValue("--accent") || "#e0a33c";
-      ctx.lineWidth = 1;
+      // Matches the stored reference outline (blank-ingest): rgba(255,90,90,0.9), 0.6 native px.
+      ctx.strokeStyle = "rgba(255,90,90,0.9)";
+      ctx.lineWidth = Math.max(1, k * 0.6);
       ctx.stroke();
     }
   }, [src, cx, cy, sw, sh, W, H, outline]);

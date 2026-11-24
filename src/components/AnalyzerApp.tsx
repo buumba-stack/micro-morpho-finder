@@ -45,6 +45,14 @@ export function AnalyzerApp() {
   const [entries, setEntries] = useState<ImageEntry[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedParticle, setSelectedParticle] = useState<number | null>(null);
+  const [paneTab, setPaneTab] = useState<"setup" | "results" | "review" | "export">("setup");
+  const hasFlagged = entries.some(
+    (e) => Object.keys(e.blankMatches ?? {}).length > 0 || Object.keys(e.contaminantMatches ?? {}).length > 0,
+  );
+  useEffect(() => {
+    if (entries.length === 0) setPaneTab("setup");
+    else if (hasFlagged) setPaneTab("review");
+  }, [entries.length === 0, hasFlagged]);
   const [progress, setProgress] = useState<RunProgress>({ running: false, done: 0, total: 0 });
   const [aiReviews, setAiReviews] = useState<Record<string, AiReview[]>>({});
   const [view, setView] = useState<"analysis" | "blanks" | "memory" | "reproducibility">("analysis");
@@ -928,59 +936,25 @@ export function AnalyzerApp() {
           <span className="h-12 w-1 rounded-full bg-border-strong" />
         </div>
         <div className="flex min-w-0 flex-1 flex-col gap-4 xl:h-full xl:overflow-y-auto xl:pr-1">
-          <MatchReviewPanel
-            entry={displayEntry}
-            library={blanks.library}
-            selectedId={selectedParticle}
-            onSelect={setSelectedParticle}
-            onAcceptBlank={excludeAsBlank}
-            onRejectBlank={keepDespiteBlank}
-            onAcceptContaminant={excludeAsContaminant}
-            onRejectContaminant={keepAsGenuine}
-          />
-          <BlankComparePanel
-            entry={displayEntry}
-            selectedId={selectedParticle}
-            onSelect={setSelectedParticle}
-            onExclude={excludeAsBlank}
-            onKeep={keepDespiteBlank}
-            onExcludeAllHighConfidence={excludeAllHighConfidenceBlanks}
-          />
-          <ContaminantMatchPanel
-            entry={displayEntry}
-            selectedId={selectedParticle}
-            onSelect={setSelectedParticle}
-            onExclude={excludeAsContaminant}
-            onKeep={keepAsGenuine}
-            onMark={openMark}
-            onExcludeAllHighConfidence={excludeAllHighConfidenceContaminants}
-          />
-          <ImageList
+          <div role="tablist" className="sticky top-0 z-10 flex gap-1 rounded-lg border border-border bg-card p-1">
+            <button type="button" role="tab" aria-selected={paneTab === "setup"} onClick={() => setPaneTab("setup")} className={`rounded-md px-3 py-1.5 text-sm ${paneTab === "setup" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>1 Setup</button>
+            <button type="button" role="tab" aria-selected={paneTab === "results"} onClick={() => setPaneTab("results")} className={`rounded-md px-3 py-1.5 text-sm ${paneTab === "results" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>2 Results</button>
+            <button type="button" role="tab" aria-selected={paneTab === "review"} onClick={() => setPaneTab("review")} className={`rounded-md px-3 py-1.5 text-sm ${paneTab === "review" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>3 Review</button>
+            <button type="button" role="tab" aria-selected={paneTab === "export"} onClick={() => setPaneTab("export")} className={`rounded-md px-3 py-1.5 text-sm ${paneTab === "export" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>4 Export</button>
+          </div>
+          <div role="tabpanel" className={paneTab === "setup" ? "flex flex-col gap-4" : "hidden"}>
+<ImageList
             entries={entries}
             selectedId={selectedImage}
             onSelect={setSelectedImage}
             onRemove={removeEntry}
           />
-          <div className="flex min-h-[45vh] flex-col">
-            <ParticleTable
-              particles={displayEntry?.analysis?.particles ?? []}
-              blankMatches={displayEntry?.blankMatches}
-              blankKeep={displayEntry?.blankKeep}
-              contaminantMatches={displayEntry?.contaminantMatches}
-              onMark={openMark}
-
-              selectedId={selectedParticle}
-              onSelect={setSelectedParticle}
-              onToggleReject={toggleReject}
-              onDelete={deleteParticle}
-            />
-          </div>
-          <BatchBar
+<BatchBar
             memory={memory}
             settings={activeSettings}
             tissues={[...new Set(entries.map((e) => e.tissue))]}
           />
-          <SetupPanel
+<SetupPanel
             settings={activeSettings}
             onChange={patchSettings}
             scope={current ? "image" : "defaults"}
@@ -1002,8 +976,54 @@ export function AnalyzerApp() {
             imageCount={entries.length}
             pendingCount={pendingCount}
           />
-          <SummaryPanel entries={entries} decisions={memory.decisions} />
-          <AiPanel
+          </div>
+          <div role="tabpanel" className={paneTab === "results" ? "flex flex-col gap-4" : "hidden"}>
+<div className="flex min-h-[45vh] flex-col">
+            <ParticleTable
+              particles={displayEntry?.analysis?.particles ?? []}
+              blankMatches={displayEntry?.blankMatches}
+              blankKeep={displayEntry?.blankKeep}
+              contaminantMatches={displayEntry?.contaminantMatches}
+              onMark={openMark}
+
+              selectedId={selectedParticle}
+              onSelect={setSelectedParticle}
+              onToggleReject={toggleReject}
+              onDelete={deleteParticle}
+            />
+          </div>
+          </div>
+          <div role="tabpanel" className={paneTab === "review" ? "flex flex-col gap-4" : "hidden"}>
+<MatchReviewPanel
+            entry={displayEntry}
+            library={blanks.library}
+            selectedId={selectedParticle}
+            onSelect={setSelectedParticle}
+            onAcceptBlank={excludeAsBlank}
+            onRejectBlank={keepDespiteBlank}
+            onAcceptContaminant={excludeAsContaminant}
+            onRejectContaminant={keepAsGenuine}
+          />
+<details className="rounded-lg border border-border bg-card p-2"><summary className="cursor-pointer text-sm">All blank and memory comparisons</summary><div className="mt-2 flex flex-col gap-4">
+<BlankComparePanel
+            entry={displayEntry}
+            selectedId={selectedParticle}
+            onSelect={setSelectedParticle}
+            onExclude={excludeAsBlank}
+            onKeep={keepDespiteBlank}
+            onExcludeAllHighConfidence={excludeAllHighConfidenceBlanks}
+          />
+<ContaminantMatchPanel
+            entry={displayEntry}
+            selectedId={selectedParticle}
+            onSelect={setSelectedParticle}
+            onExclude={excludeAsContaminant}
+            onKeep={keepAsGenuine}
+            onMark={openMark}
+            onExcludeAllHighConfidence={excludeAllHighConfidenceContaminants}
+          />
+</div></details>
+<AiPanel
             entry={current}
             entries={entries}
             settings={activeSettings}
@@ -1014,6 +1034,10 @@ export function AnalyzerApp() {
             onApplyExclusions={applyExclusions}
             onAcceptReviews={acceptAiReviews}
           />
+          </div>
+          <div role="tabpanel" className={paneTab === "export" ? "flex flex-col gap-4" : "hidden"}>
+<SummaryPanel entries={entries} decisions={memory.decisions} />
+          </div>
         </div>
       </div>
 
