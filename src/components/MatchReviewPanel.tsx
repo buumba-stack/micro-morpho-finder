@@ -20,6 +20,8 @@ function featureAgreementRows(a: AppearanceFeatures, b: AppearanceFeatures) {
   })).filter((row) => row.key in FEATURE_LABELS);
 }
 import { Button } from "@/components/ui/button";
+import { PublicationExport } from "@/components/PublicationExport";
+import { matchPairFigure } from "@/lib/publication/figures";
 
 interface Props {
   entry: ImageEntry | undefined;
@@ -173,6 +175,7 @@ export function MatchReviewPanel(props: Props) {
   const [showOutline, setShowOutline] = useState(true);
   const [brightness, setBrightness] = useState(100);
   const [contrast, setContrast] = useState(100);
+  const [pubScore, setPubScore] = useState(true);
 
   const refRecord = topBlank ? library.records.find((r) => r.id === topBlank.recordId) : undefined;
   const refCandidate = refRecord?.candidates.find((c) => c.id === topBlank?.candidateId);
@@ -348,6 +351,34 @@ export function MatchReviewPanel(props: Props) {
             <Button size="sm" variant="ghost" onClick={() => go(1)}>Next</Button>
           </div>
           <p className="text-xs text-muted-foreground">Shortcuts: E exclude · K keep · N next · P previous</p>
+          {bitmap && particle && (
+            <PublicationExport
+              entry={entry}
+              baseName={`${entry?.name ?? "image"}_candidate${currentId}_match`}
+              build={(widthMm) => matchPairFigure({
+                widthMm,
+                fieldUm: field,
+                candidate: {
+                  src: bitmap, cx: particle.bxPx + particle.bwPx / 2, cy: particle.byPx + particle.bhPx / 2,
+                  sw: field.w / umPerPx, sh: field.h / umPerPx, outline: showOutline ? particle.outline : null,
+                },
+                reference: active === "blank" && refImg && refSize && refStoredPerUm
+                  ? { src: refImg, cx: refSize.w / 2, cy: refSize.h / 2, sw: field.w * refStoredPerUm, sh: field.h * refStoredPerUm }
+                  : null,
+                scoreLine: pubScore ? `Similarity ${Math.round((similarity ?? 0) * 100)}% · ${agreeing ?? 0} of ${rows?.length ?? 9} features agree` : undefined,
+              })}
+              extras={() => ({
+                figure: `Match review pair (${view === "closeup" ? "close-up" : "context"}, field ${field.w.toFixed(1)} × ${field.h.toFixed(1)} µm)`,
+                candidateId: currentId,
+                referenceId: active === "blank" ? topBlank?.referenceId : contaminant?.matches[0]?.familyId,
+                similarity,
+                featuresAgreeing: `${agreeing ?? 0} of ${rows?.length ?? 9}`,
+                displayFactor: `${fmtX(candX)}× on screen (nearest-neighbour)${Math.abs(refX - candX) > 0.05 ? `; reference ${fmtX(refX)}× of its original pixels` : ""}`,
+              })}
+            >
+              <label className="flex items-center gap-1"><input type="checkbox" checked={pubScore} onChange={(e) => setPubScore(e.target.checked)} /> Similarity and feature agreement</label>
+            </PublicationExport>
+          )}
         </div>
       </div>
     </section>

@@ -19,6 +19,7 @@ import { ImageViewer } from "@/components/ImageViewer";
 import { ParticleTable } from "@/components/ParticleTable";
 import { BlankComparePanel } from "@/components/BlankComparePanel";
 import { SummaryPanel } from "@/components/SummaryPanel";
+import { ResultsCharts } from "@/components/ResultsCharts";
 import { AiPanel } from "@/components/AiPanel";
 import { BlankLibraryPanel } from "@/components/BlankLibraryPanel";
 import { BatchBar } from "@/components/BatchBar";
@@ -1037,6 +1038,7 @@ export function AnalyzerApp() {
           </div>
           <div role="tabpanel" className={paneTab === "export" ? "flex flex-col gap-4" : "hidden"}>
 <SummaryPanel entries={entries} decisions={memory.decisions} />
+            <ResultsCharts entries={entries} />
           </div>
         </div>
       </div>

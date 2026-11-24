@@ -2,6 +2,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { decodeToImageData, thresholdPreview, type Particle } from "@/lib/particle-analysis";
 import { MORPH_VAR, cssColor } from "@/lib/morphology-colors";
 import type { ImageEntry } from "@/lib/study-types";
+import { PublicationExport } from "@/components/PublicationExport";
+import { viewerFigure } from "@/lib/publication/figures";
+
+/** Resolves a theme colour to plain rgb() so exported SVGs open in any editor. */
+function toRgb(color: string): string {
+  const c = document.createElement("canvas");
+  c.width = c.height = 1;
+  const ctx = c.getContext("2d");
+  if (!ctx) return color;
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, 1, 1);
+  const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+  return `rgb(${r},${g},${b})`;
+}
 
 
 interface Props {
@@ -275,6 +289,30 @@ export function ImageViewer({
           <button className={`btn-ghost px-2 py-1 font-mono text-[11px] ${fit ? "text-primary" : ""}`} onClick={() => setFit(true)}>Fit</button>
           <button className="btn-ghost px-2 py-1 font-mono text-[11px]" onClick={() => setAbs(1)}>100%</button>
         </div>
+        {entry && source && (
+          <PublicationExport
+            entry={entry}
+            baseName={`${entry.name}_view`}
+            build={(widthMm) => {
+              const canvas = canvasRef.current;
+              if (!canvas) throw new Error("Image not ready");
+              const legend = showOutlines
+                ? [
+                    ...(["fibre", "sphere", "pellet", "fragment"] as const).map((m) => ({ label: m.charAt(0).toUpperCase() + m.slice(1), color: toRgb(cssColor(MORPH_VAR[m]!)) })),
+                    { label: "Rejected", color: toRgb(cssColor("--rejected")), dash: "6 6" },
+                    ...(blankMatches && Object.keys(blankMatches).length ? [{ label: "B = blank match", color: toRgb(cssColor("--accent") || "#e0a33c"), dash: "4 4" }] : []),
+                    ...(contaminantMatches && Object.keys(contaminantMatches).length ? [{ label: "C = contamination match", color: toRgb(cssColor("--rejected") || "#d1495b"), dash: "2 6" }] : []),
+                  ]
+                : [];
+              return viewerFigure({ widthMm, canvas, umPerPx, legend });
+            }}
+            extras={() => ({
+              figure: `Image viewer (${mode}${showOutlines ? ", outlines" : ""}${showLabels ? ", labels" : ""})`,
+              candidateId: selectedId ?? undefined,
+              displayFactor: `${Math.round(scale * 100)}% on screen`,
+            })}
+          />
+        )}
       </div>
 
       <div ref={wrapRef} className="relative min-h-0 flex-1 overflow-auto bg-background p-3">
