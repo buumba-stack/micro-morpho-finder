@@ -1,7 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ImageEntry } from "@/lib/study-types";
 import type { BlankLibraryState } from "@/lib/blank-library";
-import { featureAgreementRows } from "@/lib/blank-library";
+import type { AppearanceFeatures } from "@/lib/blank-library";
+import { agreeingFeatureCount } from "@/lib/blank-library";
+
+/**
+ * Per-feature agreement derived only by calling the existing
+ * agreeingFeatureCount: the probe equals the candidate except for one feature
+ * taken from the reference, so the count drops by one exactly when that
+ * feature fails the existing rule. No tolerances are redefined here.
+ */
+function featureAgreementRows(a: AppearanceFeatures, b: AppearanceFeatures) {
+  const all = agreeingFeatureCount(a, a);
+  return (Object.keys(a) as (keyof AppearanceFeatures)[]).map((key) => ({
+    key,
+    candidate: a[key],
+    reference: b[key],
+    agrees: agreeingFeatureCount(a, { ...a, [key]: b[key] }) === all,
+  })).filter((row) => row.key in FEATURE_LABELS);
+}
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -128,6 +145,7 @@ export function MatchReviewPanel(props: Props) {
   // natural side <200 → 4×, >200 → 1×, =200 → 200/sourceSide (estimated from Feret).
   const refUmSize = useMemo(() => {
     if (!refSize || !refRecord || !topBlank) return null;
+    const exact = Math.max(refSize.w, refSize.h) !== 200;
     const m = Math.max(refSize.w, refSize.h);
     const um = refRecord.metadata.umPerPx || 1;
     let scale: number;
@@ -137,7 +155,7 @@ export function MatchReviewPanel(props: Props) {
       const box = topBlank.feret / um;
       scale = Math.min(4, Math.max(1, 200 / (box + 2 * Math.max(4, Math.round(box * 0.25)))));
     }
-    return { w: (refSize.w / scale) * um, h: (refSize.h / scale) * um };
+    return { w: (refSize.w / scale) * um, h: (refSize.h / scale) * um, exact };
   }, [refSize, refRecord, topBlank]);
 
   const candUm = candidateCrop ? { w: candidateCrop.w * umPerPx, h: candidateCrop.h * umPerPx } : null;
@@ -146,6 +164,9 @@ export function MatchReviewPanel(props: Props) {
 
   const similarity = active === "blank" ? blank?.similarity : contaminant?.similarity;
   const agreeing = active === "blank" ? topBlank?.agreeingFeatures : contaminant?.matches[0]?.agreeingFeatures;
+  const agreeCount = rows?.filter((r) => r.agrees).length;
+  const breakdownOk = !!rows && agreeCount === agreeing;
+  const approxScale = active === "blank" && refUmSize ? !refUmSize.exact : active !== "blank";
   const high = active === "blank" ? blank?.highConfidence : contaminant?.highConfidence;
 
   const go = (d: number) => {
@@ -166,8 +187,8 @@ export function MatchReviewPanel(props: Props) {
       if (t && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName))) return;
       if (e.ctrlKey || e.metaKey || e.altKey || !queue.length) return;
       const k = e.key.toLowerCase();
-      if (k === "a") decide(true);
-      else if (k === "r") decide(false);
+      if (k === "e") decide(true);
+      else if (k === "k") decide(false);
       else if (k === "n") go(1);
       else if (k === "p") go(-1);
       else return;
@@ -183,7 +204,7 @@ export function MatchReviewPanel(props: Props) {
     <section className="rounded-lg border border-border bg-card p-4" aria-label="Match review">
       <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Match review</h2>
-        <span className="text-xs text-muted-foreground">Candidate {position + 1} of {queue.length}</span>
+        <span className="text-xs text-muted-foreground">{approxScale ? "Approximately same scale" : "Same scale"} · Candidate {position + 1} of {queue.length}</span>
       </header>
 
       {blank && contaminant && (
@@ -224,7 +245,7 @@ export function MatchReviewPanel(props: Props) {
           {rows ? (
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-muted-foreground"><th className="text-left">Feature</th><th className="text-right">Candidate</th><th className="text-right">Reference</th><th className="text-center">Agree</th></tr>
+                <tr className="text-muted-foreground"><th className="text-left">Feature</th><th className="text-right">Candidate</th><th className="text-right">Reference</th>{breakdownOk && <th className="text-center">Agree</th>}</tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
@@ -232,7 +253,7 @@ export function MatchReviewPanel(props: Props) {
                     <td>{FEATURE_LABELS[r.key] ?? r.key}</td>
                     <td className="text-right tabular-nums">{r.candidate.toFixed(2)}</td>
                     <td className="text-right tabular-nums">{r.reference.toFixed(2)}</td>
-                    <td className="text-center" aria-label={r.agrees ? "agrees" : "differs"}>{r.agrees ? "✓" : "✗"}</td>
+                    {breakdownOk && <td className="text-center" aria-label={r.agrees ? "agrees" : "differs"}>{r.agrees ? "✓" : "✗"}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -240,16 +261,17 @@ export function MatchReviewPanel(props: Props) {
           ) : (
             <p className="text-xs text-muted-foreground">Per-feature values are not stored for this reference.</p>
           )}
+          {rows && !breakdownOk && <p className="text-xs text-muted-foreground">Per-feature breakdown unavailable for this match</p>}
           <p className="text-sm font-medium">{agreeing ?? 0} of {rows?.length ?? 9} features agree</p>
           {particle && <p className="text-xs text-muted-foreground">Feret {particle.feret.toFixed(1)} µm · {particle.morphology}</p>}
 
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="destructive" onClick={() => decide(true)}>Accept match</Button>
-            <Button size="sm" variant="outline" onClick={() => decide(false)}>Reject match</Button>
+            <Button size="sm" variant="destructive" onClick={() => decide(true)}>Confirm match – exclude particle</Button>
+            <Button size="sm" variant="outline" onClick={() => decide(false)}>Not a match – keep particle</Button>
             <Button size="sm" variant="ghost" onClick={() => go(-1)}>Previous</Button>
             <Button size="sm" variant="ghost" onClick={() => go(1)}>Next</Button>
           </div>
-          <p className="text-xs text-muted-foreground">Shortcuts: A accept · R reject · N next · P previous</p>
+          <p className="text-xs text-muted-foreground">Shortcuts: E exclude · K keep · N next · P previous</p>
         </div>
       </div>
     </section>
