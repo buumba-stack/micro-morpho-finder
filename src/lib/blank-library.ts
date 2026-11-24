@@ -285,3 +285,25 @@ export function countConfirmed(library: BlankLibraryState): number {
   }
   return n;
 }
+
+export interface FeatureAgreementRow {
+  key: keyof AppearanceFeatures;
+  candidate: number;
+  reference: number;
+  agrees: boolean;
+}
+
+/**
+ * Read-only breakdown of the per-feature checks already used by
+ * agreeingFeatureCount (same terms and tolerances). Display only.
+ */
+export function featureAgreementRows(a: AppearanceFeatures, b: AppearanceFeatures): FeatureAgreementRow[] {
+  const rows: FeatureAgreementRow[] = TERMS.map((term) => ({
+    key: term.key,
+    candidate: a[term.key],
+    reference: b[term.key],
+    agrees: Math.abs(a[term.key] - b[term.key]) <= term.scale,
+  }));
+  rows.push({ key: "hue", candidate: a.hue, reference: b.hue, agrees: hueDistance(a.hue, b.hue) <= 35 });
+  return rows;
+}

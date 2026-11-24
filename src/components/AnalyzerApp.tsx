@@ -27,6 +27,7 @@ import { ContaminationMemoryPanel } from "@/components/ContaminationMemoryPanel"
 import { MarkContaminantDialog, type MarkTarget } from "@/components/MarkContaminantDialog";
 import { useContaminationMemory } from "@/hooks/useContaminationMemory";
 import { useBlankLibrary } from "@/hooks/useBlankLibrary";
+import { MatchReviewPanel } from "@/components/MatchReviewPanel";
 import { countConfirmed } from "@/lib/blank-library";
 import { clearSession, loadSession, saveSession } from "@/lib/session-store";
 import { newAnalysisRun } from "@/lib/analysis-run";
@@ -920,6 +921,16 @@ export function AnalyzerApp() {
             onSelect={setSelectedParticle}
             onToggleReject={toggleReject}
             onDeleteParticle={deleteParticle}
+          />
+          <MatchReviewPanel
+            entry={displayEntry}
+            library={blanks.library}
+            selectedId={selectedParticle}
+            onSelect={setSelectedParticle}
+            onAcceptBlank={excludeAsBlank}
+            onRejectBlank={keepDespiteBlank}
+            onAcceptContaminant={excludeAsContaminant}
+            onRejectContaminant={keepAsGenuine}
           />
           <BlankComparePanel
             entry={displayEntry}
