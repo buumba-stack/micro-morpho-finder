@@ -22,18 +22,21 @@ function placeImage(img: PairImage, x: number, y: number, boxW: number, boxH: nu
   const cw = Math.max(1, Math.ceil(img.sw)), ch = Math.max(1, Math.ceil(img.sh));
   const x0 = img.cx - cw / 2, y0 = img.cy - ch / 2;
   const k = boxW / img.sw; // figure px per native px (identical per µm for both images)
-  const dw = cw * k, dh = ch * k;
-  const ox = x + (boxW - dw) / 2, oy = y + (boxH - dh) / 2;
+  // Pre-enlarged to its final size at 300 dpi; embedded 1:1 (no SVG scaling).
+  const dw = Math.max(1, Math.round(cw * k)), dh = Math.max(1, Math.round(ch * k));
+  const ox = Math.round(x + (boxW - dw) / 2), oy = Math.round(y + (boxH - dh) / 2);
   const url = nearestNeighbourDataUrl(img.src, x0, y0, cw, ch, dw, dh);
-  let out = `<clipPath id="${clipId}"><rect x="${x}" y="${y}" width="${boxW}" height="${boxH}"/></clipPath><g clip-path="url(#${clipId})"><image x="${ox}" y="${oy}" width="${dw}" height="${dh}" preserveAspectRatio="none" style="image-rendering:pixelated" xlink:href="${url}"/>`;
+  let out = `<clipPath id="${clipId}"><rect x="${x}" y="${y}" width="${boxW}" height="${boxH}"/></clipPath><g clip-path="url(#${clipId})"><image x="${ox}" y="${oy}" width="${dw}" height="${dh}" preserveAspectRatio="none" image-rendering="pixelated" style="image-rendering:pixelated" xlink:href="${url}"/>`;
   const o = img.outline;
   if (o && o.length >= 4) {
     let d = "";
-    for (let i = 0; i < o.length; i += 2) d += `${i ? "L" : "M"}${(ox + (o[i]! + 0.5 - x0) * k).toFixed(2)} ${(oy + (o[i + 1]! + 0.5 - y0) * k).toFixed(2)}`;
+    for (let i = 0; i < o.length; i += 2) d += `${i ? "L" : "M"}${(ox + (o[i]! + 0.5 - x0) * (dw / cw)).toFixed(2)} ${(oy + (o[i + 1]! + 0.5 - y0) * (dh / ch)).toFixed(2)}`;
     out += `<path d="${d}Z" fill="none" stroke="${OUTLINE}" stroke-width="${Math.max(pt(0.75), k * 0.6).toFixed(2)}" stroke-linejoin="round"/>`;
   }
-  return out + `</g><rect x="${x}" y="${y}" width="${boxW}" height="${boxH}" fill="none" stroke="#999999" stroke-width="${pt(0.4)}"/>`;
+  return { svg: out + `</g><rect x="${x}" y="${y}" width="${boxW}" height="${boxH}" fill="none" stroke="#999999" stroke-width="${pt(0.4)}"/>`, note: `${fx(dw / cw)}× (${cw} × ${ch} native px → ${dw} × ${dh} px at 300 dpi, nearest-neighbour)` };
 }
+
+const fx = (v: number) => (v >= 10 ? v.toFixed(1) : v.toFixed(2));
 
 /** Candidate/reference pair at the same physical scale and field of view. */
 export function matchPairFigure(opts: {
@@ -49,11 +52,14 @@ export function matchPairFigure(opts: {
   const bar = niceBar(Math.max(opts.fieldUm.w, opts.fieldUm.h));
   const top = m + pt(9);
   let body = "";
+  const notes: [string, string][] = [];
   const cols: [string, PairImage | null][] = [["Candidate", opts.candidate], ["Reference", opts.reference]];
   cols.forEach(([label, img], i) => {
     const x = m + i * (boxW + gap);
     body += `<text x="${x}" y="${m + pt(7)}" font-size="${pt(8)}" font-weight="bold" fill="#222222">${label}</text>`;
-    body += img ? placeImage(img, x, top, boxW, boxH, `clip${i}`) : `<rect x="${x}" y="${top}" width="${boxW}" height="${boxH}" fill="#f2f2f2"/><text x="${x + boxW / 2}" y="${top + boxH / 2}" font-size="${pt(7)}" text-anchor="middle" fill="#666666">No image stored</text>`;
+    const placed = img ? placeImage(img, x, top, boxW, boxH, `clip${i}`) : null;
+    if (placed) notes.push([`${label} enlargement in file`, placed.note]);
+    body += placed ? placed.svg : `<rect x="${x}" y="${top}" width="${boxW}" height="${boxH}" fill="#f2f2f2"/><text x="${x + boxW / 2}" y="${top + boxH / 2}" font-size="${pt(7)}" text-anchor="middle" fill="#666666">No image stored</text>`;
     body += scaleBarSvg(x, top + boxH + pt(4), pxPerUm, bar);
   });
   let h = top + boxH + pt(4) + pt(11);
@@ -62,7 +68,7 @@ export function matchPairFigure(opts: {
     body += `<text x="${W / 2}" y="${h + pt(8)}" font-size="${pt(8)}" text-anchor="middle" fill="#222222">${esc(opts.scoreLine)}</text>`;
     h += pt(10);
   }
-  return svgDoc(W, Math.ceil(h + m), opts.widthMm, body);
+  return { ...svgDoc(W, Math.ceil(h + m), opts.widthMm, body), notes };
 }
 
 /** Current viewer image (as drawn, with outlines) plus legend and scale bar. */
@@ -73,10 +79,14 @@ export function viewerFigure(opts: {
   const W = mmToPx(opts.widthMm);
   const m = pt(6);
   const iw = W - 2 * m;
-  const ih = iw * (opts.canvas.height / opts.canvas.width);
-  const url = opts.canvas.toDataURL("image/png");
-  let body = `<image x="${m}" y="${m}" width="${iw}" height="${ih}" preserveAspectRatio="none" xlink:href="${url}"/>`;
-  const pxPerUm = iw / (opts.canvas.width * opts.umPerPx);
+  const cwPx = opts.canvas.width, chPx = opts.canvas.height;
+  const ow = Math.round(iw), oh = Math.max(1, Math.round(iw * (chPx / cwPx)));
+  const ih = oh;
+  // Resampled once with nearest-neighbour to its final 300 dpi size; embedded 1:1.
+  const url = ow === cwPx && oh === chPx ? opts.canvas.toDataURL("image/png") : nearestNeighbourDataUrl(opts.canvas, 0, 0, cwPx, chPx, ow, oh);
+  const resample = ow === cwPx ? `not resampled (${cwPx} px)` : `resampled from ${cwPx} × ${chPx} px to ${ow} × ${oh} px (${fx(ow / cwPx)}×), nearest-neighbour`;
+  let body = `<image x="${m}" y="${m}" width="${ow}" height="${oh}" preserveAspectRatio="none" image-rendering="pixelated" style="image-rendering:pixelated" xlink:href="${url}"/>`;
+  const pxPerUm = ow / (opts.canvas.width * opts.umPerPx);
   const y = m + ih + pt(4);
   if (opts.umPerPx > 0) body += scaleBarSvg(m, y, pxPerUm, niceBar(opts.canvas.width * opts.umPerPx));
   // legend, right aligned row(s)
@@ -87,7 +97,7 @@ export function viewerFigure(opts: {
     body += `<line x1="${lx}" y1="${ly}" x2="${lx + pt(10)}" y2="${ly}" stroke="${l.color}" stroke-width="${pt(2)}"${l.dash ? ` stroke-dasharray="${l.dash}"` : ""}/><text x="${lx + pt(12)}" y="${ly + pt(2.5)}" font-size="${pt(7)}" fill="#222222">${esc(l.label)}</text>`;
     lx += w;
   }
-  return svgDoc(W, Math.ceil(Math.max(ly, y + pt(10)) + pt(6) + m), opts.widthMm, body);
+  return { ...svgDoc(W, Math.ceil(Math.max(ly, y + pt(10)) + pt(6) + m), opts.widthMm, body), notes: [["Micrograph in file", resample]] };
 }
 
 // ---------------- Results charts (per sample) ----------------

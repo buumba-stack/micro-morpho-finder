@@ -18,7 +18,7 @@ export const FONT = "Helvetica, Arial, sans-serif";
 /** Okabe–Ito colour-blind-safe palette. */
 export const OKABE_ITO = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#000000"] as const;
 
-export interface Figure { svg: string; width: number; height: number; widthMm: number }
+export interface Figure { svg: string; width: number; height: number; widthMm: number; /** extra provenance lines, e.g. in-file enlargement */ notes?: [string, string][] }
 
 export const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -137,6 +137,7 @@ export function provenanceText(entry: ImageEntry | undefined, x: ProvenanceExtra
     ["Similarity score", x.similarity !== undefined ? `${Math.round(x.similarity * 100)}%` : undefined],
     ["Features agreeing", x.featuresAgreeing],
     ["Display factor", x.displayFactor],
+    ...(fig.notes ?? []),
     ["Exported at", new Date().toISOString()],
   ];
   return lines.map(([k, v]) => `${k}: ${na(v)}`).join("\n") + "\n";
