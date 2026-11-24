@@ -1,3 +1,4 @@
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_SETTINGS,
@@ -792,11 +793,11 @@ export function AnalyzerApp() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-[1800px] flex-col gap-4 p-4 lg:p-6">
+    <main className="flex min-h-screen w-full flex-col gap-4 p-3 lg:p-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight lg:text-3xl">
-            MicroFluor <span className="text-primary">·</span> Microplastic Morphology Analyzer
+            Micro<span className="text-primary">Fluor</span> <span className="text-muted-foreground">·</span> Microplastic Morphology Analyzer
           </h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
             Particle analysis for fluorescence photomicrographs. Reports Area, Perimeter, Feret's
@@ -805,7 +806,7 @@ export function AnalyzerApp() {
             are not uploaded.
           </p>
         </div>
-        <dl className="flex gap-5 font-mono text-xs text-muted-foreground">
+        <div className="flex items-end gap-5"><dl className="flex gap-5 font-mono text-xs text-muted-foreground">
           <div>
             <dt className="label-caps">{current ? "Image scale" : "Default scale"}</dt>
             <dd className="text-foreground">{activeSettings.umPerPx} µm/px</dd>
@@ -825,6 +826,8 @@ export function AnalyzerApp() {
             </dd>
           </div>
         </dl>
+        <ThemeToggle />
+        </div>
       </header>
 
       <nav className="flex gap-1 border-b border-border">
@@ -1054,6 +1057,7 @@ export function AnalyzerApp() {
 
       <footer className="label-caps pb-2">
         Categories: fibre · sphere · pellet · fragment — assigned from aspect ratio and circularity
+        <div className="mt-1">MicroFluor v2.6.0 · MIT licence · Cite: DOI (placeholder)</div>
         <div className="mt-1">MicroFluor © 2026 Buumba Hampuwo. Released under the MIT License.</div>
       </footer>
 

@@ -96,7 +96,7 @@ function FieldCanvas({ src, cx, cy, sw, sh, W, H, outline, label, umAcross, pxPe
   const dispW = cw * k, dispH = ch * k;
   return (
     <figure className="flex flex-col items-center gap-1">
-      <div className="flex items-center justify-center overflow-hidden rounded border border-border bg-muted" style={{ width: VIEW, height: VIEW }}>
+      <div className="flex items-center justify-center overflow-hidden rounded border border-border bg-viewer" style={{ width: VIEW, height: VIEW }}>
         {src ? (
           <div className="relative shrink-0" style={{ width: dispW, height: dispH }}>
             <canvas ref={ref} aria-label={label} className="match-display block" style={{ width: dispW, height: dispH, imageRendering: "pixelated" }} />
@@ -345,8 +345,8 @@ export function MatchReviewPanel(props: Props) {
           {particle && <p className="text-xs text-muted-foreground">Feret {particle.feret.toFixed(1)} µm · {particle.morphology}</p>}
 
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="destructive" onClick={() => decide(true)}>Confirm match – exclude particle</Button>
-            <Button size="sm" variant="outline" onClick={() => decide(false)}>Not a match – keep particle</Button>
+            <Button size="sm" className="bg-decision-exclude text-primary-foreground hover:bg-decision-exclude/90" onClick={() => decide(true)}>Confirm match – exclude particle</Button>
+            <Button size="sm" className="bg-decision-keep text-primary-foreground hover:bg-decision-keep/90" onClick={() => decide(false)}>Not a match – keep particle</Button>
             <Button size="sm" variant="ghost" onClick={() => go(-1)}>Previous</Button>
             <Button size="sm" variant="ghost" onClick={() => go(1)}>Next</Button>
           </div>

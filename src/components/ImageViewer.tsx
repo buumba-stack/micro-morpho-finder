@@ -136,11 +136,11 @@ export function ImageViewer({
       ctx.closePath();
       ctx.stroke();
 
-      // procedural-blank match marker: dashed halo + "B", advisory only
+      // procedural-blank match marker: dotted halo + "B", advisory only
       const match = blankMatches?.[p.id];
       if (match) {
         const muted = keptIds.has(p.id) || p.rejected;
-        ctx.setLineDash([lw * 2, lw * 2]);
+        ctx.setLineDash([lw, lw * 2]);
         ctx.strokeStyle = blankColor;
         ctx.globalAlpha = muted ? 0.4 : 0.95;
         ctx.lineWidth = match.highConfidence && !muted ? lw * 2.5 : lw * 1.5;
@@ -300,7 +300,7 @@ export function ImageViewer({
                 ? [
                     ...(["fibre", "sphere", "pellet", "fragment"] as const).map((m) => ({ label: m.charAt(0).toUpperCase() + m.slice(1), color: toRgb(cssColor(MORPH_VAR[m]!)) })),
                     { label: "Rejected", color: toRgb(cssColor("--rejected")), dash: "6 6" },
-                    ...(blankMatches && Object.keys(blankMatches).length ? [{ label: "B = blank match", color: toRgb(cssColor("--accent") || "#e0a33c"), dash: "4 4" }] : []),
+                    ...(blankMatches && Object.keys(blankMatches).length ? [{ label: "B = blank match", color: toRgb(cssColor("--accent") || "#e0a33c"), dash: "1 3" }] : []),
                     ...(contaminantMatches && Object.keys(contaminantMatches).length ? [{ label: "C = contamination match", color: toRgb(cssColor("--rejected") || "#d1495b"), dash: "2 6" }] : []),
                   ]
                 : [];
@@ -315,7 +315,7 @@ export function ImageViewer({
         )}
       </div>
 
-      <div ref={wrapRef} className="relative min-h-0 flex-1 overflow-auto bg-background p-3">
+      <div ref={wrapRef} className="relative min-h-0 flex-1 overflow-auto bg-viewer p-3">
         {entry ? (
           <canvas
             ref={canvasRef}

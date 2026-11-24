@@ -9,7 +9,14 @@
  */
 
 import { decodeToImageData, MORPHOLOGIES, type Morphology } from "./particle-analysis";
-import { morphologyColor } from "./morphology-colors";
+// v2.5.8 export palette, frozen so on-screen theme changes never alter exported PNGs.
+const EXPORT_MORPH_COLORS: Record<string, string> = {
+  fibre: "oklch(0.8 0.17 85)",
+  sphere: "oklch(0.78 0.15 200)",
+  pellet: "oklch(0.7 0.2 300)",
+  fragment: "oklch(0.86 0.24 145)",
+};
+const morphologyColor = (m: string): string => EXPORT_MORPH_COLORS[m] ?? EXPORT_MORPH_COLORS["fragment"]!;
 import type { ImageEntry } from "./study-types";
 
 const FONT_STACK = 'Helvetica, Arial, sans-serif';
