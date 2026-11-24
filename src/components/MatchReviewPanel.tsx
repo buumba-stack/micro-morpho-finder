@@ -56,46 +56,55 @@ function niceBar(umAcross: number): number {
 type Source = CanvasImageSource & { width: number; height: number };
 
 /**
- * Draws a source region (centre cx,cy; size sw×sh in source px) into W×H,
- * leaving area outside the source empty. Display only.
+ * Draws only the field of view at native pixel size into a small canvas
+ * (never enlarged), then displays it with CSS size and pixelated rendering.
+ * The outline is a vector overlay so no large canvas is ever created. Display only.
  */
 function FieldCanvas({ src, cx, cy, sw, sh, W, H, outline, label, umAcross, pxPerUm, note }: {
   src: Source | null; cx: number; cy: number; sw: number; sh: number; W: number; H: number;
   outline?: ArrayLike<number> | null | undefined; label: string; umAcross: number; pxPerUm: number; note?: string;
 }) {
   const ref = useRef<HTMLCanvasElement | null>(null);
+  // Native-pixel canvas covering the field (rounded up to whole pixels, centred on the particle).
+  const cw = Math.max(1, Math.ceil(sw));
+  const ch = Math.max(1, Math.ceil(sh));
+  const x0 = cx - cw / 2, y0 = cy - ch / 2;
+  // Screen px per native px; identical per-µm size for both images comes from W = field µm × pxPerUm.
+  const k = sw > 0 ? W / sw : 1;
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
-    c.width = Math.max(1, Math.round(W));
-    c.height = Math.max(1, Math.round(H));
+    c.width = cw;
+    c.height = ch;
     const ctx = c.getContext("2d");
     if (!ctx) return;
-    ctx.clearRect(0, 0, c.width, c.height);
+    ctx.clearRect(0, 0, cw, ch);
     if (!src || sw <= 0 || sh <= 0) return;
     ctx.imageSmoothingEnabled = false;
-    const k = c.width / sw;
-    const x0 = cx - sw / 2, y0 = cy - sh / 2;
     const ix = Math.max(0, x0), iy = Math.max(0, y0);
-    const ix2 = Math.min(src.width, x0 + sw), iy2 = Math.min(src.height, y0 + sh);
-    if (ix2 > ix && iy2 > iy) ctx.drawImage(src, ix, iy, ix2 - ix, iy2 - iy, (ix - x0) * k, (iy - y0) * k, (ix2 - ix) * k, (iy2 - iy) * k);
-    if (outline && outline.length >= 4) {
-      ctx.beginPath();
-      ctx.moveTo((outline[0]! + 0.5 - x0) * k, (outline[1]! + 0.5 - y0) * k);
-      for (let i = 2; i < outline.length; i += 2) ctx.lineTo((outline[i]! + 0.5 - x0) * k, (outline[i + 1]! + 0.5 - y0) * k);
-      ctx.closePath();
-      // Matches the stored reference outline (blank-ingest): rgba(255,90,90,0.9), 0.6 native px.
-      ctx.strokeStyle = "rgba(255,90,90,0.9)";
-      ctx.lineWidth = Math.max(1, k * 0.6);
-      ctx.stroke();
-    }
-  }, [src, cx, cy, sw, sh, W, H, outline]);
+    const ix2 = Math.min(src.width, x0 + cw), iy2 = Math.min(src.height, y0 + ch);
+    if (ix2 > ix && iy2 > iy) ctx.drawImage(src, ix, iy, ix2 - ix, iy2 - iy, ix - x0, iy - y0, ix2 - ix, iy2 - iy);
+  }, [src, cw, ch, x0, y0, sw, sh]);
   const bar = niceBar(umAcross);
+  let path = "";
+  if (outline && outline.length >= 4) {
+    for (let i = 0; i < outline.length; i += 2) path += `${i ? "L" : "M"}${outline[i]! + 0.5 - x0} ${outline[i + 1]! + 0.5 - y0}`;
+    path += "Z";
+  }
+  const dispW = cw * k, dispH = ch * k;
   return (
     <figure className="flex flex-col items-center gap-1">
-      <div className="flex h-[240px] w-[240px] items-center justify-center overflow-hidden rounded border border-border bg-muted">
+      <div className="flex items-center justify-center overflow-hidden rounded border border-border bg-muted" style={{ width: VIEW, height: VIEW }}>
         {src ? (
-          <canvas ref={ref} aria-label={label} className="match-display" style={{ width: Math.round(W), height: Math.round(H), imageRendering: "pixelated" }} />
+          <div className="relative shrink-0" style={{ width: dispW, height: dispH }}>
+            <canvas ref={ref} aria-label={label} className="match-display block" style={{ width: dispW, height: dispH, imageRendering: "pixelated" }} />
+            {path && (
+              <svg className="pointer-events-none absolute inset-0" width={dispW} height={dispH} viewBox={`0 0 ${cw} ${ch}`} aria-hidden="true">
+                {/* Matches the stored reference outline (blank-ingest): rgba(255,90,90,0.9), 0.6 native px. */}
+                <path d={path} fill="none" stroke="rgba(255,90,90,0.9)" strokeWidth={Math.max(1, k * 0.6)} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+              </svg>
+            )}
+          </div>
         ) : (
           <span className="text-xs text-muted-foreground">No image stored</span>
         )}
