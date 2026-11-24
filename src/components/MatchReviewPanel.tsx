@@ -46,8 +46,6 @@ const FEATURE_LABELS: Record<string, string> = {
 
 /** Largest display box side in screen px. */
 const VIEW = 240;
-/** Never enlarge beyond this factor of native source pixels. */
-const MAX_ENLARGE = 2;
 
 function niceBar(umAcross: number): number {
   const target = umAcross / 4;
@@ -198,11 +196,11 @@ export function MatchReviewPanel(props: Props) {
       ? { w: refUmSize.w, h: refUmSize.h }
       : { w: longest * 3, h: longest * 3 };
   const fieldMax = Math.max(field.w, field.h, 1e-6);
-  const pxPerUm = Math.min(
-    VIEW / fieldMax,
-    MAX_ENLARGE / umPerPx,
-    active === "blank" && refNativeUm ? MAX_ENLARGE / refNativeUm : Infinity,
-  );
+  // One shared screen-px-per-µm factor: the field fills the box in both images.
+  const pxPerUm = VIEW / fieldMax;
+  const fmtX = (x: number) => (x >= 10 ? x.toFixed(0) : x.toFixed(1)).replace(/\.0$/, "");
+  const candX = pxPerUm * umPerPx;
+  const refX = active === "blank" && refNativeUm ? pxPerUm * refNativeUm : candX;
   const W = field.w * pxPerUm, H = field.h * pxPerUm;
   const refStoredPerUm = refSize && refUmSize ? refSize.w / refUmSize.w : 0;
   const similarity = active === "blank" ? blank?.similarity : contaminant?.similarity;
@@ -300,7 +298,10 @@ export function MatchReviewPanel(props: Props) {
           ) : (
             <FieldCanvas src={null} cx={0} cy={0} sw={0} sh={0} W={0} H={0} umAcross={1} pxPerUm={pxPerUm} label={contaminant?.matches[0]?.familyName ?? "Reference"} />
           )}
-                </div>
+          <p className="w-full text-xs text-muted-foreground">
+            Displayed at {fmtX(candX)}×{Math.abs(refX - candX) > 0.05 ? ` (reference ${fmtX(refX)}× of its original pixels)` : ""} (nearest-neighbour)
+          </p>
+        </div>
 
         <div className="flex min-w-[200px] flex-1 flex-col gap-3">
           <div className="text-4xl font-semibold tabular-nums">{Math.round((similarity ?? 0) * 100)}%</div>
