@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ImageEntry } from "@/lib/study-types";
 import type { BlankLibraryState } from "@/lib/blank-library";
 import type { AppearanceFeatures } from "@/lib/blank-library";
@@ -44,8 +44,10 @@ const FEATURE_LABELS: Record<string, string> = {
   hue: "Hue",
 };
 
-/** Shared display scale: screen px per µm. */
-const VIEW = 220;
+/** Largest display box side in screen px. */
+const VIEW = 240;
+/** Never enlarge beyond this factor of native source pixels. */
+const MAX_ENLARGE = 2;
 
 function niceBar(umAcross: number): number {
   const target = umAcross / 4;
@@ -53,13 +55,48 @@ function niceBar(umAcross: number): number {
   return steps.reduce((best, s) => (s <= target ? s : best), steps[0]!);
 }
 
-function ScaledCrop({ src, umWidth, umHeight, pxPerUm, label }: { src: string; umWidth: number; umHeight: number; pxPerUm: number; label: string }) {
-  const bar = niceBar(Math.max(umWidth, umHeight));
+type Source = CanvasImageSource & { width: number; height: number };
+
+/**
+ * Draws a source region (centre cx,cy; size sw×sh in source px) into W×H,
+ * leaving area outside the source empty. Display only.
+ */
+function FieldCanvas({ src, cx, cy, sw, sh, W, H, outline, label, umAcross, pxPerUm, note }: {
+  src: Source | null; cx: number; cy: number; sw: number; sh: number; W: number; H: number;
+  outline?: ArrayLike<number> | null | undefined; label: string; umAcross: number; pxPerUm: number; note?: string;
+}) {
+  const ref = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    c.width = Math.max(1, Math.round(W));
+    c.height = Math.max(1, Math.round(H));
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, c.width, c.height);
+    if (!src || sw <= 0 || sh <= 0) return;
+    ctx.imageSmoothingEnabled = false;
+    const k = c.width / sw;
+    const x0 = cx - sw / 2, y0 = cy - sh / 2;
+    const ix = Math.max(0, x0), iy = Math.max(0, y0);
+    const ix2 = Math.min(src.width, x0 + sw), iy2 = Math.min(src.height, y0 + sh);
+    if (ix2 > ix && iy2 > iy) ctx.drawImage(src, ix, iy, ix2 - ix, iy2 - iy, (ix - x0) * k, (iy - y0) * k, (ix2 - ix) * k, (iy2 - iy) * k);
+    if (outline && outline.length >= 4) {
+      ctx.beginPath();
+      ctx.moveTo((outline[0]! + 0.5 - x0) * k, (outline[1]! + 0.5 - y0) * k);
+      for (let i = 2; i < outline.length; i += 2) ctx.lineTo((outline[i]! + 0.5 - x0) * k, (outline[i + 1]! + 0.5 - y0) * k);
+      ctx.closePath();
+      ctx.strokeStyle = getComputedStyle(c).getPropertyValue("--accent") || "#e0a33c";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }, [src, cx, cy, sw, sh, W, H, outline]);
+  const bar = niceBar(umAcross);
   return (
     <figure className="flex flex-col items-center gap-1">
       <div className="flex h-[240px] w-[240px] items-center justify-center overflow-hidden rounded border border-border bg-muted">
         {src ? (
-          <img src={src} alt={label} style={{ width: umWidth * pxPerUm, height: umHeight * pxPerUm, imageRendering: "pixelated" }} />
+          <canvas ref={ref} aria-label={label} className="match-display" style={{ width: Math.round(W), height: Math.round(H), imageRendering: "pixelated" }} />
         ) : (
           <span className="text-xs text-muted-foreground">No image stored</span>
         )}
@@ -69,47 +106,35 @@ function ScaledCrop({ src, umWidth, umHeight, pxPerUm, label }: { src: string; u
         {bar} µm
       </div>
       <figcaption className="text-xs font-medium">{label}</figcaption>
+      {note && <p className="max-w-[240px] text-center text-[11px] text-muted-foreground">{note}</p>}
     </figure>
   );
 }
 
-/** Renders the candidate crop at a known scale (source px → µm). */
-function useCandidateCrop(entry: ImageEntry | undefined, particleId: number | null) {
-  const [crop, setCrop] = useState<{ src: string; w: number; h: number } | null>(null);
+/** Decodes the original micrograph once for display. */
+function useBitmap(file: Blob | undefined) {
+  const [bmp, setBmp] = useState<ImageBitmap | null>(null);
   useEffect(() => {
-    setCrop(null);
-    const p = entry?.analysis?.particles.find((x) => x.id === particleId);
-    if (!entry?.file || !p) return;
+    setBmp(null);
+    if (!file) return;
     let cancelled = false;
-    void createImageBitmap(entry.file).then((bmp) => {
-      if (cancelled) return;
-      const pad = Math.max(4, Math.round(Math.max(p.bwPx, p.bhPx) * 0.25));
-      const x = Math.max(0, Math.round(p.bxPx) - pad);
-      const y = Math.max(0, Math.round(p.byPx) - pad);
-      const w = Math.min(bmp.width - x, Math.round(p.bwPx) + pad * 2);
-      const h = Math.min(bmp.height - y, Math.round(p.bhPx) + pad * 2);
-      const c = document.createElement("canvas");
-      c.width = w;
-      c.height = h;
-      c.getContext("2d")?.drawImage(bmp, x, y, w, h, 0, 0, w, h);
-      setCrop({ src: c.toDataURL(), w, h });
-    }).catch(() => undefined);
+    void createImageBitmap(file).then((b) => { if (!cancelled) setBmp(b); }).catch(() => undefined);
     return () => { cancelled = true; };
-  }, [entry?.file, entry?.analysis, particleId]);
-  return crop;
+  }, [file]);
+  return bmp;
 }
 
-/** Natural size of a stored reference crop. */
-function useNaturalSize(src: string | undefined) {
-  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+/** Loads a stored reference crop as an image element. */
+function useImage(src: string | undefined) {
+  const [img, setImg] = useState<HTMLImageElement | null>(null);
   useEffect(() => {
-    setSize(null);
+    setImg(null);
     if (!src) return;
-    const img = new Image();
-    img.onload = () => setSize({ w: img.naturalWidth, h: img.naturalHeight });
-    img.src = src;
+    const el = new Image();
+    el.onload = () => setImg(el);
+    el.src = src;
   }, [src]);
-  return size;
+  return img;
 }
 
 export function MatchReviewPanel(props: Props) {
@@ -132,9 +157,14 @@ export function MatchReviewPanel(props: Props) {
 
   const particle = entry?.analysis?.particles.find((p) => p.id === currentId);
   const umPerPx = entry?.runSettings?.umPerPx ?? entry?.settings.umPerPx ?? 1;
-  const candidateCrop = useCandidateCrop(entry, currentId);
+  const bitmap = useBitmap(entry?.file);
   const topBlank = blank?.matches[0];
-  const refSize = useNaturalSize(active === "blank" ? topBlank?.crop : undefined);
+  const refImg = useImage(active === "blank" ? topBlank?.crop : undefined);
+  const refSize = refImg ? { w: refImg.naturalWidth, h: refImg.naturalHeight } : null;
+  const [view, setView] = useState<"context" | "closeup">("context");
+  const [showOutline, setShowOutline] = useState(true);
+  const [brightness, setBrightness] = useState(100);
+  const [contrast, setContrast] = useState(100);
 
   const refRecord = topBlank ? library.records.find((r) => r.id === topBlank.recordId) : undefined;
   const refCandidate = refRecord?.candidates.find((c) => c.id === topBlank?.candidateId);
@@ -158,10 +188,22 @@ export function MatchReviewPanel(props: Props) {
     return { w: (refSize.w / scale) * um, h: (refSize.h / scale) * um, exact };
   }, [refSize, refRecord, topBlank]);
 
-  const candUm = candidateCrop ? { w: candidateCrop.w * umPerPx, h: candidateCrop.h * umPerPx } : null;
-  const largest = Math.max(candUm?.w ?? 0, candUm?.h ?? 0, refUmSize?.w ?? 0, refUmSize?.h ?? 0, 1);
-  const pxPerUm = VIEW / largest;
-
+  // Shared physical field of view (µm) for both images.
+  const refNativeUm = refRecord?.metadata.umPerPx || 0;
+  const longest = particle ? Math.max(particle.bwPx, particle.bhPx) * umPerPx : 0;
+  const field = view === "closeup" || !longest
+    ? { w: longest * 1.2, h: longest * 1.2 }
+    : active === "blank" && refUmSize
+      ? { w: refUmSize.w, h: refUmSize.h }
+      : { w: longest * 3, h: longest * 3 };
+  const fieldMax = Math.max(field.w, field.h, 1e-6);
+  const pxPerUm = Math.min(
+    VIEW / fieldMax,
+    MAX_ENLARGE / umPerPx,
+    active === "blank" && refNativeUm ? MAX_ENLARGE / refNativeUm : Infinity,
+  );
+  const W = field.w * pxPerUm, H = field.h * pxPerUm;
+  const refStoredPerUm = refSize && refUmSize ? refSize.w / refUmSize.w : 0;
   const similarity = active === "blank" ? blank?.similarity : contaminant?.similarity;
   const agreeing = active === "blank" ? topBlank?.agreeingFeatures : contaminant?.matches[0]?.agreeingFeatures;
   const agreeCount = rows?.filter((r) => r.agrees).length;
@@ -214,27 +256,50 @@ export function MatchReviewPanel(props: Props) {
         </div>
       )}
 
+      <style>{`[aria-label="Match review"] .match-display{filter:brightness(${brightness}%) contrast(${contrast}%)}`}</style>
+      <div className="mb-3 flex flex-wrap items-center gap-3 text-xs">
+        <div className="flex gap-1">
+          <Button size="sm" variant={view === "context" ? "default" : "outline"} onClick={() => setView("context")}>Context</Button>
+          <Button size="sm" variant={view === "closeup" ? "default" : "outline"} onClick={() => setView("closeup")}>Close-up</Button>
+        </div>
+        <label className="flex items-center gap-1"><input type="checkbox" checked={showOutline} onChange={(e) => setShowOutline(e.target.checked)} /> Outline</label>
+        <label className="flex items-center gap-1">Brightness <input type="range" min={50} max={300} value={brightness} onChange={(e) => setBrightness(Number(e.target.value))} /></label>
+        <label className="flex items-center gap-1">Contrast <input type="range" min={50} max={300} value={contrast} onChange={(e) => setContrast(Number(e.target.value))} /></label>
+        <span className="text-muted-foreground">Field {fieldMax.toFixed(0)} µm · display only, same for both</span>
+      </div>
       <div className="flex flex-wrap items-start gap-6">
         <div className="flex flex-wrap gap-4">
-          <ScaledCrop
-            src={candidateCrop?.src ?? ""}
-            umWidth={candUm?.w ?? 0}
-            umHeight={candUm?.h ?? 0}
+          <FieldCanvas
+            src={bitmap}
+            cx={particle ? particle.bxPx + particle.bwPx / 2 : 0}
+            cy={particle ? particle.byPx + particle.bhPx / 2 : 0}
+            sw={field.w / umPerPx}
+            sh={field.h / umPerPx}
+            W={W}
+            H={H}
+            outline={showOutline ? particle?.outline : null}
+            umAcross={fieldMax}
             pxPerUm={pxPerUm}
             label={`Candidate #${currentId}`}
           />
           {active === "blank" ? (
-            <ScaledCrop
-              src={topBlank?.crop ?? ""}
-              umWidth={refUmSize?.w ?? 0}
-              umHeight={refUmSize?.h ?? 0}
+            <FieldCanvas
+              src={refImg}
+              cx={(refSize?.w ?? 0) / 2}
+              cy={(refSize?.h ?? 0) / 2}
+              sw={field.w * refStoredPerUm}
+              sh={field.h * refStoredPerUm}
+              W={W}
+              H={H}
+              umAcross={fieldMax}
               pxPerUm={pxPerUm}
               label={`Reference ${topBlank?.referenceId ?? ""}`}
+              note="Reference outline is part of the stored image and cannot be hidden."
             />
           ) : (
-            <ScaledCrop src="" umWidth={0} umHeight={0} pxPerUm={pxPerUm} label={contaminant?.matches[0]?.familyName ?? "Reference"} />
+            <FieldCanvas src={null} cx={0} cy={0} sw={0} sh={0} W={0} H={0} umAcross={1} pxPerUm={pxPerUm} label={contaminant?.matches[0]?.familyName ?? "Reference"} />
           )}
-        </div>
+                </div>
 
         <div className="flex min-w-[200px] flex-1 flex-col gap-3">
           <div className="text-4xl font-semibold tabular-nums">{Math.round((similarity ?? 0) * 100)}%</div>

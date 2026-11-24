@@ -764,6 +764,24 @@ export function AnalyzerApp() {
 
   useEffect(() => setSelectedParticle(null), [selectedImage]);
 
+  const splitRef = useRef<HTMLDivElement | null>(null);
+  const [split, setSplit] = useState(55);
+  useEffect(() => {
+    const v = Number(localStorage.getItem("microfluor.viewerSplit"));
+    if (v >= 25 && v <= 80) setSplit(v);
+  }, []);
+  useEffect(() => { localStorage.setItem("microfluor.viewerSplit", String(split)); }, [split]);
+  const startDrag = (e: { preventDefault(): void }) => {
+    e.preventDefault();
+    const move = (ev: PointerEvent) => {
+      const r = splitRef.current?.getBoundingClientRect();
+      if (r) setSplit(Math.min(80, Math.max(25, ((ev.clientX - r.left) / r.width) * 100)));
+    };
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
   return (
     <main className="mx-auto flex min-h-screen max-w-[1800px] flex-col gap-4 p-4 lg:p-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -881,39 +899,10 @@ export function AnalyzerApp() {
       {recordStatus && <p role="status" className="text-xs text-muted-foreground">{recordStatus}</p>}
 
       <div
-        className={`${view === "analysis" ? "grid" : "hidden"} min-h-0 flex-1 gap-4 xl:grid-cols-[300px_minmax(0,1fr)_360px]`}
+        ref={splitRef}
+        className={`${view === "analysis" ? "flex" : "hidden"} flex-col gap-4 xl:sticky xl:top-2 xl:h-[calc(100vh-1rem)] xl:flex-row xl:gap-0`}
       >
-        <div className="flex min-h-0 flex-col gap-4">
-          <BatchBar
-            memory={memory}
-            settings={activeSettings}
-            tissues={[...new Set(entries.map((e) => e.tissue))]}
-          />
-          <SetupPanel
-            settings={activeSettings}
-            onChange={patchSettings}
-            scope={current ? "image" : "defaults"}
-            selectedName={current?.name}
-            selectedAnalyzed={current?.status === "done"}
-            selectedStale={selectedStale}
-            draftPending={Boolean(current?.draft)}
-            onCommitDraft={() => current && commitDraft(current.id)}
-            onDiscardDraft={() => current && discardDraft(current.id)}
-
-            onReanalyzeSelected={reanalyzeSelected}
-            onApplyDefaultsToSelected={applyDefaultsToSelected}
-            onCopySelectedToDefaults={copySelectedToDefaults}
-            defaults={defaults}
-            onAddFiles={addFiles}
-            onRun={runPending}
-            onClear={clearAll}
-            progress={progress}
-            imageCount={entries.length}
-            pendingCount={pendingCount}
-          />
-        </div>
-
-        <div className="flex min-h-[70vh] flex-col gap-4">
+        <div className="flex min-h-[60vh] flex-col xl:h-full xl:min-h-0" style={{ flexBasis: `${split}%` }}>
           <ImageViewer
             entry={displayEntry}
             threshold={activeSettings.threshold}
@@ -922,6 +911,23 @@ export function AnalyzerApp() {
             onToggleReject={toggleReject}
             onDeleteParticle={deleteParticle}
           />
+        </div>
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-valuenow={Math.round(split)}
+          aria-label="Resize image viewer"
+          tabIndex={0}
+          onPointerDown={startDrag}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowLeft") setSplit((v) => Math.max(25, v - 2));
+            if (e.key === "ArrowRight") setSplit((v) => Math.min(80, v + 2));
+          }}
+          className="hidden w-3 shrink-0 cursor-col-resize items-center justify-center xl:flex"
+        >
+          <span className="h-12 w-1 rounded-full bg-border-strong" />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-4 xl:h-full xl:overflow-y-auto xl:pr-1">
           <MatchReviewPanel
             entry={displayEntry}
             library={blanks.library}
@@ -949,29 +955,13 @@ export function AnalyzerApp() {
             onMark={openMark}
             onExcludeAllHighConfidence={excludeAllHighConfidenceContaminants}
           />
-
-          <SummaryPanel entries={entries} decisions={memory.decisions} />
-          <AiPanel
-            entry={current}
-            entries={entries}
-            settings={activeSettings}
-            reviews={aiReviews}
-            onReviews={setReviews}
-            onSelectParticle={setSelectedParticle}
-            onSelectImage={setSelectedImage}
-            onApplyExclusions={applyExclusions}
-            onAcceptReviews={acceptAiReviews}
-          />
-        </div>
-
-        <div className="flex min-h-0 flex-col gap-4">
           <ImageList
             entries={entries}
             selectedId={selectedImage}
             onSelect={setSelectedImage}
             onRemove={removeEntry}
           />
-          <div className="min-h-[45vh] flex flex-col">
+          <div className="flex min-h-[45vh] flex-col">
             <ParticleTable
               particles={displayEntry?.analysis?.particles ?? []}
               blankMatches={displayEntry?.blankMatches}
@@ -985,6 +975,45 @@ export function AnalyzerApp() {
               onDelete={deleteParticle}
             />
           </div>
+          <BatchBar
+            memory={memory}
+            settings={activeSettings}
+            tissues={[...new Set(entries.map((e) => e.tissue))]}
+          />
+          <SetupPanel
+            settings={activeSettings}
+            onChange={patchSettings}
+            scope={current ? "image" : "defaults"}
+            selectedName={current?.name}
+            selectedAnalyzed={current?.status === "done"}
+            selectedStale={selectedStale}
+            draftPending={Boolean(current?.draft)}
+            onCommitDraft={() => current && commitDraft(current.id)}
+            onDiscardDraft={() => current && discardDraft(current.id)}
+
+            onReanalyzeSelected={reanalyzeSelected}
+            onApplyDefaultsToSelected={applyDefaultsToSelected}
+            onCopySelectedToDefaults={copySelectedToDefaults}
+            defaults={defaults}
+            onAddFiles={addFiles}
+            onRun={runPending}
+            onClear={clearAll}
+            progress={progress}
+            imageCount={entries.length}
+            pendingCount={pendingCount}
+          />
+          <SummaryPanel entries={entries} decisions={memory.decisions} />
+          <AiPanel
+            entry={current}
+            entries={entries}
+            settings={activeSettings}
+            reviews={aiReviews}
+            onReviews={setReviews}
+            onSelectParticle={setSelectedParticle}
+            onSelectImage={setSelectedImage}
+            onApplyExclusions={applyExclusions}
+            onAcceptReviews={acceptAiReviews}
+          />
         </div>
       </div>
 

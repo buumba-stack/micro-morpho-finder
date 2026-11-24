@@ -28,6 +28,29 @@ export function ImageViewer({
   const [showOutlines, setShowOutlines] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [zoom, setZoom] = useState(1);
+  const [fit, setFit] = useState(true);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setBox({ w: el.clientWidth - 24, h: el.clientHeight - 24 }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [entry]);
+  const imgW = source?.imageData.width ?? 0;
+  const imgH = source?.imageData.height ?? 0;
+  const fitScale = imgW && imgH && box.w > 0 && box.h > 0 ? Math.min(box.w / imgW, box.h / imgH) : 1;
+  const scale = fit ? fitScale : zoom;
+  const umPerPx = entry?.runSettings?.umPerPx ?? entry?.settings.umPerPx ?? 0;
+  const bar = useMemo(() => {
+    if (!umPerPx || !scale) return null;
+    const target = (110 / scale) * umPerPx;
+    const steps = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
+    const um = steps.reduce((b, s) => (s <= target ? s : b), steps[0]!);
+    return { um, px: (um / umPerPx) * scale };
+  }, [umPerPx, scale]);
+  const setAbs = (z: number) => { setFit(false); setZoom(Math.min(8, Math.max(0.05, z))); };
   const blankMatches = entry?.blankMatches;
   const contaminantMatches = entry?.contaminantMatches;
   const keptIds = useMemo(() => new Set(entry?.blankKeep ?? []), [entry?.blankKeep]);
@@ -246,25 +269,15 @@ export function ImageViewer({
           {selectedId === null ? "Delete object" : `Delete #${selectedId}`}
         </button>
         <div className="flex items-center gap-1">
-          <button
-            className="btn-ghost px-2 py-1"
-            onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
-          >
-            −
-          </button>
-          <span className="w-12 text-center font-mono text-[11px] text-muted-foreground">
-            {Math.round(zoom * 100)}%
-          </span>
-          <button
-            className="btn-ghost px-2 py-1"
-            onClick={() => setZoom((z) => Math.min(4, z + 0.25))}
-          >
-            +
-          </button>
+          <button className="btn-ghost px-2 py-1" aria-label="Zoom out" onClick={() => setAbs(scale / 1.25)}>−</button>
+          <span className="w-12 text-center font-mono text-[11px] text-muted-foreground">{Math.round(scale * 100)}%</span>
+          <button className="btn-ghost px-2 py-1" aria-label="Zoom in" onClick={() => setAbs(scale * 1.25)}>+</button>
+          <button className={`btn-ghost px-2 py-1 font-mono text-[11px] ${fit ? "text-primary" : ""}`} onClick={() => setFit(true)}>Fit</button>
+          <button className="btn-ghost px-2 py-1 font-mono text-[11px]" onClick={() => setAbs(1)}>100%</button>
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto bg-background p-3">
+      <div ref={wrapRef} className="relative min-h-0 flex-1 overflow-auto bg-background p-3">
         {entry ? (
           <canvas
             ref={canvasRef}
@@ -286,12 +299,18 @@ export function ImageViewer({
               const hit = hitTest(x, y);
               if (hit) onToggleReject(hit.id);
             }}
-            style={{ width: `${zoom * 100}%`, imageRendering: "pixelated" }}
+            style={{ width: imgW ? imgW * scale : "100%", maxWidth: "none", imageRendering: "pixelated" }}
             className="cursor-crosshair rounded-md border border-border"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             Upload micrographs and run the analysis to inspect outlines here.
+          </div>
+        )}
+        {entry && bar && (
+          <div className="pointer-events-none sticky bottom-0 left-0 mt-2 inline-flex items-center gap-2 rounded bg-card/90 px-2 py-1 font-mono text-[11px] text-foreground">
+            <span className="inline-block h-1 bg-foreground" style={{ width: bar.px }} />
+            {bar.um} µm
           </div>
         )}
       </div>
