@@ -245,7 +245,13 @@ export function AiPanel({
   }, [draft, digest, messages, streaming]);
 
   return (
-    <div className="panel flex min-h-0 flex-col">
+    <div className="rounded-lg border border-border bg-card">
+      <details className="group">
+        <summary className="cursor-pointer select-none px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+          AI review (optional, advisory)
+          <span className="label-caps ml-2">AI-assisted · online only</span>
+        </summary>
+      <div className="flex min-h-0 flex-col border-t border-border">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="flex gap-1">
           {(["qc", "chat"] as const).map((t) => (
@@ -262,7 +268,6 @@ export function AiPanel({
             </button>
           ))}
         </div>
-        <span className="label-caps">AI-assisted · online only</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2 font-mono text-[11px]">
@@ -362,7 +367,7 @@ export function AiPanel({
 
           <div className="flex gap-2">
             <button
-              className="btn-primary flex-1"
+              className="btn-ghost flex-1"
               disabled={busy || !particles.length || selectedHasDraft}
               onClick={runQc}
             >
@@ -385,7 +390,7 @@ export function AiPanel({
             </p>
           )}
           <button
-            className="btn-primary"
+            className="btn-ghost"
             disabled={busy || !batchReady.length || pendingUpdates > 0}
             onClick={runQcAll}
           >
@@ -450,7 +455,12 @@ export function AiPanel({
                             className="w-full rounded border border-border px-2 py-1.5 text-left hover:bg-secondary"
                           >
                             <span className="flex items-center justify-between gap-2 font-mono text-[11px]">
-                              <span>#{r.id}</span>
+                              <span className="flex items-center gap-1.5">
+                                <span>#{r.id}</span>
+                                <span className="rounded border border-border bg-muted px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                  AI
+                                </span>
+                              </span>
                               <span className={VERDICT_CLASS[r.verdict] ?? ""}>
                                 {r.verdict} · {r.morphology}
                                 {r.issue !== "none" ? ` · ${r.issue}` : ""}
@@ -520,6 +530,12 @@ export function AiPanel({
           </div>
         </div>
       )}
+      </div>
+      </details>
+      <p className="border-t border-border px-3 py-2 text-[11px] leading-snug text-muted-foreground">
+        Advisory only. AI suggestions never change measurements and never exclude a particle
+        unless the analyst accepts the suggestion.
+      </p>
     </div>
   );
 }
